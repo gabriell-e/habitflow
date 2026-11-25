@@ -1,6 +1,8 @@
 # HabitFlow
 
-Proyecto individual de Programación VI de la Universidad del Norte (UniNorte). La fase inicial contiene la navegación Ionic Angular standalone entre Hoy, Hábitos y Progreso. La aplicación todavía no consume datos.
+Proyecto individual de Programación VI de la Universidad del Norte (UniNorte). La aplicación usa Ionic Angular standalone y cuenta con tres pestañas: Hoy, Hábitos y Progreso.
+
+En la primera ejecución, Hoy carga hábitos de ejemplo desde `src/assets/data/habits.json`. El servicio guarda los hábitos y sus registros diarios en colecciones separadas dentro de `localStorage`. Los datos quedan en el navegador para ese origen. La creación, edición y registro manual están disponibles a nivel de servicio.
 
 ## Desarrollo
 
