@@ -1,0 +1,27 @@
+[
+  {
+    "id": "example-meditation",
+    "name": "Meditar",
+    "type": "duration",
+    "target": 10,
+    "unit": "minutos",
+    "frequency": { "kind": "daily" },
+    "active": true
+  },
+  {
+    "id": "example-reading",
+    "name": "Leer",
+    "type": "quantity",
+    "target": 15,
+    "unit": "páginas",
+    "frequency": { "kind": "weekly", "times": 3 },
+    "active": true
+  },
+  {
+    "id": "example-planning",
+    "name": "Preparar la jornada",
+    "type": "boolean",
+    "frequency": { "kind": "weekdays", "days": [1, 2, 3, 4, 5] },
+    "active": true
+  }
+]
