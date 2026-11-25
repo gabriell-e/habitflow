@@ -1,0 +1,59 @@
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <ion-list>
+    <ion-input label="Nombre" labelPlacement="stacked" formControlName="name" required></ion-input>
+    <ion-textarea label="Descripción (opcional)" labelPlacement="stacked" formControlName="description" [autoGrow]="true"></ion-textarea>
+
+    <ion-select label="Tipo" labelPlacement="stacked" formControlName="type" cancelText="Cancelar" okText="Aceptar">
+      <ion-select-option value="boolean">Sí o no</ion-select-option>
+      <ion-select-option value="quantity">Cantidad</ion-select-option>
+      <ion-select-option value="duration">Duración</ion-select-option>
+    </ion-select>
+
+    @if (type() !== 'boolean') {
+      <ion-input label="Objetivo" labelPlacement="stacked" type="number" step="any" formControlName="target" required></ion-input>
+      <ion-input
+        label="Unidad"
+        labelPlacement="stacked"
+        [placeholder]="type() === 'duration' ? 'Ej. minutos' : 'Ej. páginas'"
+        formControlName="unit"
+        required
+      ></ion-input>
+    }
+
+    <ion-select label="Frecuencia" labelPlacement="stacked" formControlName="frequency" cancelText="Cancelar" okText="Aceptar">
+      <ion-select-option value="daily">Todos los días</ion-select-option>
+      <ion-select-option value="weekdays">Días específicos</ion-select-option>
+      <ion-select-option value="weekly">Veces por semana</ion-select-option>
+    </ion-select>
+
+    @if (frequency() === 'weekdays') {
+      <ion-select label="Días" labelPlacement="stacked" formControlName="days" [multiple]="true" cancelText="Cancelar" okText="Aceptar">
+        @for (day of weekdays; track day; let index = $index) {
+          <ion-select-option [value]="index">{{ day }}</ion-select-option>
+        }
+      </ion-select>
+    } @else if (frequency() === 'weekly') {
+      <ion-select label="Veces por semana" labelPlacement="stacked" formControlName="times" cancelText="Cancelar" okText="Aceptar">
+        @for (times of weeklyOptions; track times) {
+          <ion-select-option [value]="times">{{ times }}</ion-select-option>
+        }
+      </ion-select>
+    }
+
+    <ion-select label="Color" labelPlacement="stacked" formControlName="color" cancelText="Cancelar" okText="Aceptar">
+      @for (color of colors; track color[0]) {
+        <ion-select-option [value]="color[0]">{{ color[1] }}</ion-select-option>
+      }
+    </ion-select>
+    <ion-select label="Icono" labelPlacement="stacked" formControlName="icon" cancelText="Cancelar" okText="Aceptar">
+      @for (icon of icons; track icon[0]) {
+        <ion-select-option [value]="icon[0]">{{ icon[1] }}</ion-select-option>
+      }
+    </ion-select>
+  </ion-list>
+
+  @if (error(); as message) {
+    <ion-text color="danger"><p role="alert">{{ message }}</p></ion-text>
+  }
+  <ion-button expand="block" type="submit">Guardar</ion-button>
+</form>

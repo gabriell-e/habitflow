@@ -8,8 +8,31 @@ export type HabitFrequency =
   | { readonly kind: 'weekdays'; readonly days: readonly Weekday[] }
   | { readonly kind: 'weekly'; readonly times: number };
 
+export const habitColors = {
+  primary: 'Azul',
+  secondary: 'Celeste',
+  tertiary: 'Violeta',
+  success: 'Verde',
+  warning: 'Amarillo',
+  danger: 'Rojo',
+} as const;
+
+export const habitIcons = {
+  'checkmark-circle-outline': 'Círculo con marca',
+  'book-outline': 'Libro',
+  'fitness-outline': 'Ejercicio',
+  'water-outline': 'Agua',
+  'leaf-outline': 'Hoja',
+  'time-outline': 'Reloj',
+} as const;
+
+export const weekdayLabels = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
 interface HabitDetails {
   readonly name: string;
+  readonly description?: string;
+  readonly color?: keyof typeof habitColors;
+  readonly icon?: keyof typeof habitIcons;
   readonly frequency: HabitFrequency;
   readonly active: boolean;
 }
