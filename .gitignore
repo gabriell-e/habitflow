@@ -1,8 +1,11 @@
-# Instrucciones para agentes de IA
+# Documentación privada
 AGENTS.md
 agents.md
 HANDOFF.md
 handoff.md
+LEARNING.md
+learning.md
+/HabitFlow-HANDOFF-*.md
 
 # Dependencias
 node_modules/
