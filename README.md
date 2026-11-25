@@ -2,7 +2,9 @@
 
 Proyecto individual de Programación VI de la Universidad del Norte (UniNorte). La aplicación usa Ionic Angular standalone y cuenta con tres pestañas: Hoy, Hábitos y Progreso.
 
-En la primera ejecución, Hoy carga hábitos de ejemplo desde `src/assets/data/habits.json`. El servicio guarda los hábitos y sus registros diarios en colecciones separadas dentro de `localStorage`. Los datos quedan en el navegador para ese origen. La creación, edición y registro manual están disponibles a nivel de servicio.
+En la pestaña **Hábitos** puedes crear, editar, activar, desactivar y eliminar hábitos. El formulario admite hábitos de sí o no, cantidad o duración, con frecuencia diaria, por días específicos o por veces a la semana. También puedes añadir una descripción y elegir el color y el icono. Al eliminar un hábito se conservan sus registros.
+
+Al iniciar Hoy o Hábitos por primera vez, la aplicación carga ejemplos desde `src/assets/data/habits.json`. Los cambios se guardan en `localStorage` y se conservan al recargar en el mismo navegador y origen. El registro diario desde la interfaz queda para una fase posterior.
 
 ## Desarrollo
 
