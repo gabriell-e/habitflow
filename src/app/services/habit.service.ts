@@ -3,7 +3,7 @@ import { computed, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../environments/environment';
-import { Habit, HabitInput } from '../models/habit.model';
+import { Habit, habitColors, habitIcons, HabitInput } from '../models/habit.model';
 import { HabitRecord, isLocalDateKey, localDateKey } from '../models/habit-record.model';
 import { StorageService } from './storage.service';
 
@@ -26,36 +26,53 @@ function isNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function isFrequency(value: unknown): boolean {
-  if (!isObject(value)) return false;
+function frequencyError(value: unknown): string | null {
+  if (!isObject(value)) return 'Selecciona una frecuencia.';
 
   switch (value['kind']) {
     case 'daily':
-      return true;
+      return null;
     case 'weekdays': {
       const days: unknown = value['days'];
-      return Array.isArray(days) && days.length > 0 && new Set(days).size === days.length
+      const valid = Array.isArray(days) && days.length > 0 && new Set(days).size === days.length
         && days.every((day: unknown) => isNumber(day) && Number.isInteger(day) && day >= 0 && day <= 6);
+      return valid ? null : 'Selecciona al menos un día de la semana.';
     }
     case 'weekly': {
       const times = value['times'];
-      return isNumber(times) && Number.isInteger(times) && times >= 1 && times <= 7;
+      const valid = isNumber(times) && Number.isInteger(times) && times >= 1 && times <= 7;
+      return valid ? null : 'Selecciona de 1 a 7 veces por semana.';
     }
     default:
-      return false;
+      return 'Selecciona una frecuencia válida.';
   }
 }
 
-function isHabit(value: unknown): value is Habit {
-  if (!isObject(value)) return false;
+function habitInputError(value: Record<string, unknown>): string | null {
+  const { name, description, color, icon, type, frequency, active, target, unit } = value;
+  if (!hasText(name)) return 'Escribe un nombre para el hábito.';
+  if (description !== undefined && typeof description !== 'string') return 'La descripción debe ser texto.';
+  if (color !== undefined && (typeof color !== 'string' || !Object.hasOwn(habitColors, color))) {
+    return 'Selecciona un color válido.';
+  }
+  if (icon !== undefined && (typeof icon !== 'string' || !Object.hasOwn(habitIcons, icon))) {
+    return 'Selecciona un icono válido.';
+  }
+  if (typeof active !== 'boolean') return 'El estado del hábito no es válido.';
 
-  const { id, name, type, frequency, active, target, unit } = value;
-  if (!hasText(id) || !hasText(name) || typeof active !== 'boolean' || !isFrequency(frequency)) {
-    return false;
+  if (type === 'boolean') {
+    if (target !== undefined || unit !== undefined) return 'El hábito de sí o no no admite objetivo ni unidad.';
+  } else {
+    if (type !== 'quantity' && type !== 'duration') return 'Selecciona un tipo de hábito válido.';
+    if (!isNumber(target) || target <= 0) return 'Escribe un objetivo mayor que cero.';
+    if (!hasText(unit)) return 'Escribe una unidad para el objetivo.';
   }
 
-  if (type === 'boolean') return target === undefined && unit === undefined;
-  return (type === 'quantity' || type === 'duration') && isNumber(target) && target > 0 && hasText(unit);
+  return frequencyError(frequency);
+}
+
+function isHabit(value: unknown): value is Habit {
+  return isObject(value) && hasText(value['id']) && habitInputError(value) === null;
 }
 
 function isHabitList(value: unknown): value is readonly Habit[] {
@@ -129,6 +146,14 @@ export class HabitService {
     return updated;
   }
 
+  setHabitActive(id: string, active: boolean): void {
+    this.updateData((data) => {
+      const habit = this.requireHabit(data, id);
+      const updated = this.buildHabit(id, { ...habit, active });
+      return { ...data, habits: data.habits.map((item) => item.id === id ? updated : item) };
+    });
+  }
+
   deleteHabit(id: string): void {
     this.updateData((data) => {
       this.requireHabit(data, id);
@@ -188,9 +213,18 @@ export class HabitService {
   }
 
   private buildHabit(id: string, input: HabitInput): Habit {
-    const habit = structuredClone({ ...input, id, name: input.name.trim() });
-    if (!isHabit(habit)) throw new Error('La configuración del hábito no es válida.');
-    return habit;
+    const error = habitInputError({ ...input });
+    if (error) throw new Error(error);
+
+    const details = {
+      ...input,
+      id,
+      name: input.name.trim(),
+      description: input.description?.trim() || undefined,
+    };
+    return structuredClone(input.type === 'boolean'
+      ? details
+      : { ...details, type: input.type, target: input.target, unit: input.unit.trim() });
   }
 
   private requireHabit(data: HabitData, id: string): Habit {
