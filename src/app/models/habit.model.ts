@@ -9,10 +9,10 @@ export type HabitFrequency =
   | { readonly kind: 'weekly'; readonly times: number };
 
 export const habitColors = {
-  primary: 'Azul',
+  primary: 'Verde bosque',
   secondary: 'Celeste',
   tertiary: 'Violeta',
-  success: 'Verde',
+  success: 'Verde natural',
   warning: 'Amarillo',
   danger: 'Rojo',
 } as const;

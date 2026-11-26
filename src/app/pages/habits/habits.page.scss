@@ -1,0 +1,60 @@
+.habits-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.habit-filters {
+  max-width: 26rem;
+  margin-bottom: 0.875rem;
+}
+
+.habit-list {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.surface-error {
+  margin-block-end: 0.75rem;
+}
+
+.habit-menu-trigger {
+  min-width: 44px;
+  --padding-start: 0.45rem;
+  --padding-end: 0.45rem;
+}
+
+.habit-row-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem 0.75rem;
+  padding-top: 0;
+  padding-bottom: 0.25rem;
+}
+
+.habit-row-detail p {
+  flex: 1 1 10rem;
+  min-width: 0;
+  color: var(--hf-muted);
+}
+
+.habit-row-detail ion-toggle {
+  min-width: 44px;
+  min-height: 44px;
+  --track-background: var(--hf-control);
+  --track-background-checked: var(--ion-color-primary);
+  --handle-background: var(--hf-surface);
+  --handle-background-checked: var(--ion-color-primary-contrast);
+}
+
+.delete-option {
+  --color: var(--ion-color-danger);
+}
+
+@media (min-width: 50rem) {
+  .habit-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

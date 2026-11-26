@@ -1,23 +1,28 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, computed, OnInit, signal } from '@angular/core';
 import {
-  IonAlert, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle,
-  IonCardTitle, IonContent, IonHeader, IonIcon, IonModal, IonSpinner, IonText, IonTitle, IonToast, IonToolbar,
+  IonAlert, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle,
+  IonCardTitle, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonList, IonModal, IonPopover, IonSegment,
+  IonSegmentButton, IonSpinner, IonText, IonTitle, IonToast, IonToggle, IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { bookOutline, checkmarkCircleOutline, fitnessOutline, leafOutline, timeOutline, waterOutline } from 'ionicons/icons';
+import { addOutline, ellipsisHorizontal, pencilOutline, trashOutline } from 'ionicons/icons';
 
+import { AppBrandComponent } from '../../components/app-brand/app-brand.component';
 import { HabitFormComponent } from '../../components/habit-form/habit-form.component';
+import { HabitSymbolComponent } from '../../components/habit-symbol/habit-symbol.component';
 import { Habit, HabitFrequency, HabitInput, weekdayLabels } from '../../models/habit.model';
 import { HabitService } from '../../services/habit.service';
 
 @Component({
   selector: 'app-habits',
   imports: [
-    HabitFormComponent, IonAlert, IonBadge, IonButton, IonButtons, IonCard, IonCardContent, IonCardHeader,
-    IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonIcon, IonModal, IonSpinner, IonText, IonTitle,
-    IonToast, IonToolbar,
+    AppBrandComponent, HabitFormComponent, HabitSymbolComponent, IonAlert, IonButton, IonButtons, IonCard,
+    IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonIcon, IonItem, IonLabel,
+    IonList, IonModal, IonPopover, IonSegment, IonSegmentButton, IonSpinner, IonText, IonTitle, IonToast, IonToggle,
+    IonToolbar,
   ],
   templateUrl: './habits.page.html',
+  styleUrl: './habits.page.scss',
 })
 export class HabitsPage implements OnInit {
   protected readonly editorOpen = signal(false);
@@ -25,13 +30,20 @@ export class HabitsPage implements OnInit {
   protected readonly pendingDeletion = signal<Habit | null>(null);
   protected readonly operationError = signal<string | null>(null);
   protected readonly feedback = signal<string | null>(null);
+  protected readonly filter = signal<'all' | 'active' | 'inactive'>('all');
+  protected readonly visibleHabits = computed(() => {
+    const filter = this.filter();
+    return this.habitService.habits()
+      .filter((habit) => filter === 'all' || habit.active === (filter === 'active'))
+      .sort((first, second) => Number(second.active) - Number(first.active) || first.name.localeCompare(second.name, 'es-PY'));
+  });
   protected readonly deleteButtons = [
     { text: 'Cancelar', role: 'cancel' },
     { text: 'Eliminar', role: 'destructive' },
   ];
 
   constructor(protected readonly habitService: HabitService) {
-    addIcons({ bookOutline, checkmarkCircleOutline, fitnessOutline, leafOutline, timeOutline, waterOutline });
+    addIcons({ addOutline, ellipsisHorizontal, pencilOutline, trashOutline });
   }
 
   ngOnInit(): void {
@@ -61,11 +73,21 @@ export class HabitsPage implements OnInit {
     }, habit ? 'Cambios guardados.' : 'Hábito creado.');
   }
 
-  protected toggleHabit(habit: Habit): void {
-    this.performAction(
-      () => this.habitService.setHabitActive(habit.id, !habit.active),
-      habit.active ? 'Hábito desactivado.' : 'Hábito activado.',
+  protected selectFilter(value: string | number | undefined): void {
+    if (value === 'all' || value === 'active' || value === 'inactive') this.filter.set(value);
+  }
+
+  protected toggleHabit(habit: Habit, toggle: IonToggle, checked: boolean): void {
+    const saved = this.performAction(
+      () => this.habitService.setHabitActive(habit.id, checked),
+      checked ? 'Hábito activado.' : 'Hábito desactivado.',
     );
+    if (!saved) toggle.checked = habit.active;
+  }
+
+  protected finishMenu(habit: Habit, role?: string): void {
+    if (role === 'edit') this.openEditor(habit);
+    if (role === 'remove') this.pendingDeletion.set(habit);
   }
 
   protected finishDeletion(role?: string): void {
@@ -84,13 +106,16 @@ export class HabitsPage implements OnInit {
     }
   }
 
-  private performAction(action: () => void, successMessage: string): void {
+  private performAction(action: () => void, successMessage: string): boolean {
     this.operationError.set(null);
     try {
       action();
       this.feedback.set(successMessage);
+      return true;
     } catch (error) {
+      this.feedback.set(null);
       this.operationError.set(error instanceof Error ? error.message : 'No se pudo completar la operación.');
+      return false;
     }
   }
 }

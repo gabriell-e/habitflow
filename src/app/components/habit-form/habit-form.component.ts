@@ -11,6 +11,7 @@ import {
   selector: 'app-habit-form',
   imports: [ReactiveFormsModule, IonButton, IonInput, IonList, IonSelect, IonSelectOption, IonText, IonTextarea],
   templateUrl: './habit-form.component.html',
+  styleUrl: './habit-form.component.scss',
 })
 export class HabitFormComponent implements OnInit {
   readonly habit = input<Habit | null>(null);

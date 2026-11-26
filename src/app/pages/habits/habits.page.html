@@ -1,87 +1,123 @@
 <ion-header>
-  <ion-toolbar>
-    <ion-title>Hábitos</ion-title>
-    <ion-buttons slot="end">
-      <ion-button
-        (click)="openEditor()"
-        [disabled]="habitService.loading() || habitService.loadError() !== null"
-      >Nuevo hábito</ion-button>
-    </ion-buttons>
-  </ion-toolbar>
+  <ion-toolbar class="app-toolbar"><app-brand></app-brand></ion-toolbar>
 </ion-header>
 
 <ion-content>
-  @if (habitService.loading()) {
-    <ion-card>
-      <ion-card-content>
-        <div role="status">
-          <ion-spinner aria-hidden="true"></ion-spinner>
-          <span>Cargando hábitos…</span>
-        </div>
-      </ion-card-content>
-    </ion-card>
-  } @else if (habitService.loadError(); as message) {
-    <ion-card>
-      <ion-card-content>
+  <main class="page-shell">
+    <div class="page-heading habits-heading">
+      <h1>Hábitos</h1>
+      <ion-button (click)="openEditor()" [disabled]="habitService.loading() || habitService.loadError() !== null">
+        <ion-icon name="add-outline" slot="start" aria-hidden="true"></ion-icon>
+        Nuevo hábito
+      </ion-button>
+    </div>
+
+    @if (habitService.loading()) {
+      <ion-card class="state-card"><ion-card-content><div role="status">
+        <ion-spinner aria-hidden="true"></ion-spinner> Cargando hábitos…
+      </div></ion-card-content></ion-card>
+    } @else if (habitService.loadError(); as message) {
+      <ion-card class="surface-error"><ion-card-content>
         <ion-text color="danger"><p role="alert">{{ message }}</p></ion-text>
-        <ion-button (click)="habitService.initialize()">Reintentar</ion-button>
-      </ion-card-content>
-    </ion-card>
-  } @else {
-    @if (!editorOpen() && operationError(); as message) {
-      <ion-card>
-        <ion-card-content><ion-text color="danger"><p role="alert">{{ message }}</p></ion-text></ion-card-content>
-      </ion-card>
-    }
+        <ion-button fill="outline" (click)="habitService.initialize()">Reintentar</ion-button>
+      </ion-card-content></ion-card>
+    } @else {
+      <ion-segment class="habit-filters" [value]="filter()" (ionChange)="selectFilter($event.detail.value)" aria-label="Filtrar hábitos por estado">
+        <ion-segment-button value="all">Todos</ion-segment-button>
+        <ion-segment-button value="active">Activos</ion-segment-button>
+        <ion-segment-button value="inactive">Inactivos</ion-segment-button>
+      </ion-segment>
 
-    @for (habit of habitService.habits(); track habit.id) {
-      <ion-card>
-        <ion-card-header>
-          <ion-card-title>
-            <ion-icon aria-hidden="true" [name]="habit.icon ?? 'checkmark-circle-outline'" [color]="habit.color ?? 'primary'"></ion-icon>
-            {{ habit.name }}
-          </ion-card-title>
-          <ion-card-subtitle>{{ describeFrequency(habit.frequency) }}</ion-card-subtitle>
-        </ion-card-header>
+      @if (!editorOpen() && operationError(); as message) {
+        <ion-card class="surface-error">
+          <ion-card-content><ion-text color="danger"><p role="alert">{{ message }}</p></ion-text></ion-card-content>
+        </ion-card>
+      }
 
-        <ion-card-content>
-          <ion-badge [color]="habit.active ? 'success' : 'medium'">{{ habit.active ? 'Activo' : 'Inactivo' }}</ion-badge>
-          @if (habit.description) {
-            <p>{{ habit.description }}</p>
-          }
-          <p>{{ habit.type === 'boolean' ? 'Sí o no' : habit.target + ' ' + habit.unit }}</p>
-          <ion-button fill="clear" (click)="openEditor(habit)">Editar</ion-button>
-          <ion-button fill="clear" (click)="toggleHabit(habit)">{{ habit.active ? 'Desactivar' : 'Activar' }}</ion-button>
-          <ion-button fill="clear" color="danger" (click)="pendingDeletion.set(habit)">Eliminar</ion-button>
-        </ion-card-content>
-      </ion-card>
-    } @empty {
-      <ion-card>
-        <ion-card-content>
-          <p>Aún no tienes hábitos.</p>
-          <ion-button (click)="openEditor()">Crear un hábito</ion-button>
-        </ion-card-content>
-      </ion-card>
+      <div class="habit-list">
+        @for (habit of visibleHabits(); track habit.id) {
+          <ion-card class="habit-row">
+            <ion-card-header class="habit-head">
+              <app-habit-symbol [habit]="habit"></app-habit-symbol>
+              <div>
+                <ion-card-title>{{ habit.name }}</ion-card-title>
+                <ion-card-subtitle>
+                  {{ describeFrequency(habit.frequency) }} · {{ habit.type === 'boolean' ? 'Sí o no' : habit.target + ' ' + habit.unit }}
+                </ion-card-subtitle>
+              </div>
+              <ion-button
+                class="habit-menu-trigger"
+                [id]="'habit-menu-' + habit.id"
+                [attr.aria-label]="'Acciones de ' + habit.name"
+                aria-haspopup="dialog"
+                fill="clear"
+              ><ion-icon slot="icon-only" name="ellipsis-horizontal" aria-hidden="true"></ion-icon></ion-button>
+            </ion-card-header>
+
+            <ion-card-content class="habit-row-detail">
+              @if (habit.description) {
+                <p>{{ habit.description }}</p>
+              }
+              <ion-toggle
+                #toggle
+                [checked]="habit.active"
+                [attr.aria-label]="'Activación de ' + habit.name"
+                (ionChange)="toggleHabit(habit, toggle, $event.detail.checked)"
+              ></ion-toggle>
+            </ion-card-content>
+          </ion-card>
+
+          <ion-popover
+            #menu
+            [trigger]="'habit-menu-' + habit.id"
+            [attr.aria-label]="'Acciones de ' + habit.name"
+            side="bottom"
+            alignment="end"
+            (didDismiss)="finishMenu(habit, $event.detail.role)"
+          >
+            <ng-template>
+              <ion-list lines="none">
+                <ion-item [button]="true" [detail]="false" (click)="menu.dismiss(null, 'edit')">
+                  <ion-icon name="pencil-outline" slot="start" aria-hidden="true"></ion-icon>
+                  <ion-label>Editar</ion-label>
+                </ion-item>
+                <ion-item [button]="true" [detail]="false" class="delete-option" (click)="menu.dismiss(null, 'remove')">
+                  <ion-icon name="trash-outline" slot="start" aria-hidden="true"></ion-icon>
+                  <ion-label>Eliminar</ion-label>
+                </ion-item>
+              </ion-list>
+            </ng-template>
+          </ion-popover>
+        } @empty {
+          <ion-card class="state-card">
+            <ion-card-content>
+              @if (!habitService.habits().length) {
+                <p>Aún no tienes hábitos.</p>
+                <ion-button fill="outline" (click)="openEditor()">Crear un hábito</ion-button>
+              } @else {
+                <p>{{ filter() === 'active' ? 'No hay hábitos activos.' : 'No hay hábitos inactivos.' }}</p>
+                <ion-button fill="outline" (click)="filter.set('all')">Ver todos</ion-button>
+              }
+            </ion-card-content>
+          </ion-card>
+        }
+      </div>
     }
-  }
+  </main>
 </ion-content>
 
-<ion-modal [isOpen]="editorOpen()" (didDismiss)="closeEditor()">
+<ion-modal class="editor-sheet" [isOpen]="editorOpen()" (didDismiss)="closeEditor()" aria-labelledby="habit-editor-title">
   <ng-template>
     <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ editedHabit() ? 'Editar hábito' : 'Nuevo hábito' }}</ion-title>
+      <ion-toolbar class="app-toolbar">
+        <ion-title id="habit-editor-title">{{ editedHabit() ? 'Editar hábito' : 'Nuevo hábito' }}</ion-title>
         <ion-buttons slot="end">
           <ion-button (click)="closeEditor()">Cancelar</ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
     <ion-content>
-      <ion-card>
-        <ion-card-content>
-          <app-habit-form [habit]="editedHabit()" [error]="operationError()" (save)="saveHabit($event)"></app-habit-form>
-        </ion-card-content>
-      </ion-card>
+      <app-habit-form [habit]="editedHabit()" [error]="operationError()" (save)="saveHabit($event)"></app-habit-form>
     </ion-content>
   </ng-template>
 </ion-modal>

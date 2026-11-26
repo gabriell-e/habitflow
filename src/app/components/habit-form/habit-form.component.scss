@@ -1,0 +1,50 @@
+form {
+  padding: 1rem var(--hf-gutter) max(1rem, var(--ion-safe-area-bottom, 0px));
+}
+
+.form-sections {
+  display: grid;
+  gap: 1rem;
+  padding: 0;
+  background: transparent;
+}
+
+.form-sections section {
+  min-width: 0;
+}
+
+.form-sections h2 {
+  margin: 0 0 0.625rem;
+  color: var(--ion-text-color);
+  font-size: 1rem;
+  font-weight: 625;
+}
+
+.form-fields {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.form-fields > * {
+  min-width: 0;
+  min-height: 3.25rem;
+}
+
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  padding-bottom: 0.25rem;
+  border-top: 1px solid var(--hf-border);
+  background: var(--hf-surface);
+}
+
+.form-actions p {
+  margin: 0 0 0.5rem;
+}
+
+@media (min-width: 42rem) {
+  .two-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
