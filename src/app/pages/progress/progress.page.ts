@@ -1,9 +1,12 @@
 import { Component, computed, OnInit, signal } from '@angular/core';
 import {
   IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonContent, IonHeader,
-  IonProgressBar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonText, IonTitle, IonToolbar,
+  IonIcon, IonProgressBar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonText, IonToolbar,
 } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { chevronBack, chevronForward } from 'ionicons/icons';
 
+import { AppBrandComponent } from '../../components/app-brand/app-brand.component';
 import { dayStates, progressHabits } from '../../domain/habit-progress';
 import { calendarDate, formatLocalDate, Period } from '../../domain/local-calendar';
 import { HabitRecord } from '../../models/habit-record.model';
@@ -14,8 +17,8 @@ import { ProgressService } from '../../services/progress.service';
 @Component({
   selector: 'app-progress',
   imports: [
-    IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonContent, IonHeader,
-    IonProgressBar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonText, IonTitle, IonToolbar,
+    AppBrandComponent, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardTitle, IonContent, IonHeader,
+    IonIcon, IonProgressBar, IonSegment, IonSegmentButton, IonSelect, IonSelectOption, IonSpinner, IonText, IonToolbar,
   ],
   templateUrl: './progress.page.html',
   styleUrl: './progress.page.scss',
@@ -37,9 +40,11 @@ export class ProgressPage implements OnInit {
   protected readonly cells = computed(() => this.summary().days.map(({ date, habits }) => {
     const states = new Set(habits.map(({ state }) => state));
     const records = habits.filter(({ record }) => record).length;
-    const marker = states.has('missed') ? '!' : states.has('completed') ? '✓' : records ? '•' : '';
+    const tone = states.has('missed') ? 'missed' : states.has('completed') ? 'completed'
+      : records ? 'recorded' : states.has('pending') ? 'pending' : 'neutral';
+    const marker = { missed: '!', completed: '✓', recorded: '•', pending: '–', neutral: '' }[tone];
     const labels = [...states].map((state) => dayStates[state]).join(', ');
-    return { date, marker, label: `${this.dateLabel(date)}. ${records} registros. ${labels}` };
+    return { date, marker, tone, label: `${this.dateLabel(date)}. ${records} registros. ${labels}` };
   }));
   protected readonly firstColumn = computed(() => ((calendarDate(this.summary().range.start).getDay() + 6) % 7) + 1);
   protected readonly dayDetail = computed(() => {
@@ -52,7 +57,9 @@ export class ProgressPage implements OnInit {
     protected readonly habitService: HabitService,
     private readonly progress: ProgressService,
     private readonly calendar: LocalCalendarService,
-  ) {}
+  ) {
+    addIcons({ chevronBack, chevronForward });
+  }
 
   ngOnInit(): void {
     void this.habitService.initialize();
