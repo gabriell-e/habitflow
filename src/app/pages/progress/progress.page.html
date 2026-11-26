@@ -1,0 +1,145 @@
+<ion-header>
+  <ion-toolbar><ion-title>Progreso</ion-title></ion-toolbar>
+</ion-header>
+
+<ion-content>
+  @if (habitService.loading()) {
+    <ion-card><ion-card-content><div role="status">
+      <ion-spinner aria-hidden="true"></ion-spinner> Cargando progreso…
+    </div></ion-card-content></ion-card>
+  } @else if (habitService.loadError(); as message) {
+    <ion-card><ion-card-content>
+      <ion-text color="danger"><p role="alert">{{ message }}</p></ion-text>
+      <ion-button (click)="habitService.initialize()">Reintentar</ion-button>
+    </ion-card-content></ion-card>
+  } @else {
+    <ion-card>
+      <ion-card-header><ion-card-title>Resumen</ion-card-title></ion-card-header>
+      <ion-card-content>
+        <ion-segment [value]="period()" (ionChange)="selectPeriod($event.detail.value)" aria-label="Período">
+          <ion-segment-button value="week">Semana</ion-segment-button>
+          <ion-segment-button value="month">Mes</ion-segment-button>
+        </ion-segment>
+        <ion-button fill="clear" (click)="movePeriod(-1)">Anterior</ion-button>
+        <ion-button fill="clear" (click)="movePeriod(1)" [disabled]="offset() === 0">Siguiente</ion-button>
+        <p>{{ dateLabel(summary().range.start) }} – {{ dateLabel(summary().range.end) }}</p>
+        <ion-select
+          label="Hábito"
+          labelPlacement="stacked"
+          [value]="selectedHabit()"
+          (ionChange)="selectedHabit.set($event.detail.value)"
+          cancelText="Cancelar"
+          okText="Aceptar"
+        >
+          <ion-select-option value="">Todos los hábitos</ion-select-option>
+          @for (habit of habits(); track habit.id) {
+            <ion-select-option [value]="habit.id">
+              {{ habit.name }}{{ habit.status !== 'Activo' ? ' · ' + habit.status : '' }}
+            </ion-select-option>
+          }
+        </ion-select>
+
+        @if (summary().percentage !== null) {
+          <p><strong>{{ summary().percentage }} % de cumplimiento</strong></p>
+          <p>{{ summary().earned }} de {{ summary().expected }} oportunidades evaluadas.</p>
+          <ion-progress-bar aria-label="Cumplimiento del período" [value]="summary().earned / summary().expected"></ion-progress-bar>
+        } @else {
+          <p>Aún no hay suficientes datos de programación para calcular el cumplimiento de este período.</p>
+        }
+        @if (habitService.persistenceError(); as message) {
+          <ion-text color="danger"><p role="alert">{{ message }}</p></ion-text>
+        }
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header><ion-card-title>Calendario</ion-card-title></ion-card-header>
+      <ion-card-content>
+        <div class="calendar">
+          @for (day of weekDays; track day) {
+            <span aria-hidden="true">{{ day }}</span>
+          }
+          @for (cell of cells(); track cell.date; let first = $first) {
+            <button
+              type="button"
+              [style.gridColumnStart]="first ? firstColumn() : null"
+              [attr.aria-label]="cell.label"
+              [attr.aria-pressed]="dayDetail()?.date === cell.date"
+              (click)="selectedDate.set(cell.date)"
+            >{{ cell.date.slice(-2) }} <span aria-hidden="true">{{ cell.marker }}</span></button>
+          }
+        </div>
+        <p>✓ Completado · ! Incumplido · • Otro registro</p>
+        @if (dayDetail(); as day) {
+          <h3>{{ dateLabel(day.date) }}</h3>
+          @for (habit of day.habits; track habit.id) {
+            <p>
+              {{ habit.name }} · {{ dayStates[habit.state] }}
+              @if (habit.record; as record) {
+                <br>{{ recordLabel(record) }}
+              }
+            </p>
+          } @empty {
+            <p>No hay hábitos para mostrar.</p>
+          }
+        }
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header><ion-card-title>Rachas y metas semanales</ion-card-title></ion-card-header>
+      <ion-card-content>
+        @if (summary().reports.length) {
+          <p>Las rachas abarcan toda la programación conocida.</p>
+        }
+        @for (habit of summary().reports; track habit.id) {
+          <section>
+            <h3>{{ habit.name }} @if (habit.status !== 'Activo') { <ion-badge color="medium">{{ habit.status }}</ion-badge> }</h3>
+            @for (streak of habit.streaks; track streak.unit) {
+              <p>
+                {{ streak.unit === 'days' ? 'Días programados' : 'Semanas' }} ·
+                @if (streak.current !== null) { Actual: {{ streak.current }} · }
+                Mejor: {{ streak.best }}
+              </p>
+            } @empty {
+              <p>Todavía no hay períodos comparables para calcular una racha.</p>
+            }
+            @for (week of habit.weeks; track week.start) {
+              <p>
+                {{ dateLabel(week.start) }} – {{ dateLabel(week.end) }} · {{ week.done }} de {{ week.goal }} días.
+                @if (!week.comparable) {
+                  Semana con programación parcial o modificada.
+                } @else if (week.done >= week.goal) {
+                  Meta alcanzada.
+                } @else if (week.open) {
+                  En curso.
+                } @else {
+                  Meta incumplida.
+                }
+              </p>
+            }
+          </section>
+        } @empty {
+          <p>Aún no hay hábitos con actividad o programación.</p>
+        }
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card>
+      <ion-card-header><ion-card-title>Historial del período</ion-card-title></ion-card-header>
+      <ion-card-content>
+        @for (entry of summary().history; track entry.id + entry.record.date) {
+          <p>
+            <strong>{{ entry.record.habitName ?? entry.name }}</strong> · {{ dateLabel(entry.record.date) }}
+            <br>{{ recordLabel(entry.record) }}
+            @if (entry.state === 'unknown' || entry.state === 'off') {
+              · {{ dayStates[entry.state] }}
+            }
+          </p>
+        } @empty {
+          <p>No hay registros en este período.</p>
+        }
+      </ion-card-content>
+    </ion-card>
+  }
+</ion-content>
