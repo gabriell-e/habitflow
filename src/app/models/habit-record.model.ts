@@ -3,6 +3,16 @@ export interface HabitRecord {
   readonly date: string;
   readonly value: boolean | number;
   readonly completed: boolean;
+  readonly habitName?: string;
+  readonly goal?: { readonly target: number; readonly unit: string };
+}
+
+export function uniqueRecords(records: readonly HabitRecord[]): HabitRecord[] {
+  const byDay = new Map<string, HabitRecord>();
+  for (const record of records) {
+    byDay.set(JSON.stringify([record.habitId, record.date]), record);
+  }
+  return [...byDay.values()];
 }
 
 // Esta clave representa un día del calendario local y no un instante UTC.

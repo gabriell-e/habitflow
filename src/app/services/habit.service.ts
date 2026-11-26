@@ -3,8 +3,9 @@ import { computed, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { environment } from '../../environments/environment';
+import { currentSchedule, recordSchedule, ScheduleChange } from '../domain/habit-schedule';
 import { Habit, habitColors, habitIcons, HabitInput } from '../models/habit.model';
-import { HabitRecord, isLocalDateKey, localDateKey } from '../models/habit-record.model';
+import { HabitRecord, isLocalDateKey, localDateKey, uniqueRecords } from '../models/habit-record.model';
 import { StorageService } from './storage.service';
 
 const storageKey = 'habitflow.data.v1';
@@ -12,6 +13,7 @@ const storageKey = 'habitflow.data.v1';
 interface HabitData {
   readonly habits: readonly Habit[];
   readonly records: readonly HabitRecord[];
+  readonly schedule?: readonly ScheduleChange[];
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -83,14 +85,23 @@ function isHabitList(value: unknown): value is readonly Habit[] {
 function isRecord(value: unknown): value is HabitRecord {
   if (!isObject(value)) return false;
 
-  const { habitId, date, value: amount, completed } = value;
+  const { habitId, date, value: amount, completed, habitName, goal } = value;
   return hasText(habitId) && isLocalDateKey(date) && typeof completed === 'boolean'
-    && (typeof amount === 'boolean' || (isNumber(amount) && amount >= 0));
+    && (typeof amount === 'boolean' || (isNumber(amount) && amount >= 0))
+    && (habitName === undefined || hasText(habitName))
+    && (goal === undefined || (typeof amount === 'number' && isObject(goal)
+      && isNumber(goal['target']) && goal['target'] > 0 && hasText(goal['unit'])));
 }
 
 function isHabitData(value: unknown): value is HabitData {
   return isObject(value) && isHabitList(value['habits'])
-    && Array.isArray(value['records']) && value['records'].every(isRecord);
+    && Array.isArray(value['records']) && value['records'].every(isRecord)
+    && (value['schedule'] === undefined || (Array.isArray(value['schedule']) && value['schedule'].every(isScheduleChange)));
+}
+
+function isScheduleChange(value: unknown): value is ScheduleChange {
+  return isObject(value) && hasText(value['habitId']) && isLocalDateKey(value['date'])
+    && (value['frequency'] === null || frequencyError(value['frequency']) === null);
 }
 
 @Injectable({ providedIn: 'root' })
@@ -102,6 +113,8 @@ export class HabitService {
   private pendingLoad?: Promise<void>;
 
   readonly habits = computed(() => this.data()?.habits ?? []);
+  readonly records = computed(() => this.data()?.records ?? []);
+  readonly schedule = computed(() => this.data()?.schedule ?? []);
   readonly loading = this.loadingState.asReadonly();
   readonly loadError = this.loadErrorState.asReadonly();
   readonly persistenceError = this.persistenceErrorState.asReadonly();
@@ -133,7 +146,11 @@ export class HabitService {
 
   createHabit(input: HabitInput): Habit {
     const habit = this.buildHabit(crypto.randomUUID(), input);
-    this.updateData((data) => ({ ...data, habits: [...data.habits, habit] }));
+    this.updateData((data) => ({
+      ...data,
+      habits: [...data.habits, habit],
+      schedule: recordSchedule(data.schedule ?? [], habit.id, localDateKey(), habit.active ? habit.frequency : null),
+    }));
     return habit;
   }
 
@@ -141,7 +158,7 @@ export class HabitService {
     const updated = this.buildHabit(id, input);
     this.updateData((data) => {
       this.requireHabit(data, id);
-      return { ...data, habits: data.habits.map((habit) => habit.id === id ? updated : habit) };
+      return this.replaceHabit(data, updated);
     });
     return updated;
   }
@@ -150,7 +167,7 @@ export class HabitService {
     this.updateData((data) => {
       const habit = this.requireHabit(data, id);
       const updated = this.buildHabit(id, { ...habit, active });
-      return { ...data, habits: data.habits.map((item) => item.id === id ? updated : item) };
+      return this.replaceHabit(data, updated);
     });
   }
 
@@ -158,15 +175,47 @@ export class HabitService {
     this.updateData((data) => {
       this.requireHabit(data, id);
       // Eliminar una definición no elimina sus registros históricos.
-      return { ...data, habits: data.habits.filter((habit) => habit.id !== id) };
+      return {
+        ...data,
+        habits: data.habits.filter((habit) => habit.id !== id),
+        schedule: recordSchedule(data.schedule ?? [], id, localDateKey(), null),
+      };
     });
   }
 
   saveRecord(habitId: string, value: boolean | number, date = localDateKey()): HabitRecord {
+    return this.writeRecord(habitId, date, () => value);
+  }
+
+  incrementQuantity(habitId: string, date: string): void {
+    this.writeRecord(habitId, date, (habit, record) => {
+      if (habit.type !== 'quantity') throw new Error('Este hábito no admite incrementos de cantidad.');
+      if (record && (typeof record.value !== 'number' || record.goal?.unit !== habit.unit)) {
+        throw new Error('Corrige el valor según la unidad actual antes de incrementarlo.');
+      }
+      return (typeof record?.value === 'number' ? record.value : 0) + 1;
+    });
+  }
+
+  removeRecord(habitId: string, date: string): void {
+    if (!isLocalDateKey(date)) throw new Error('La fecha del registro debe ser un día válido en formato AAAA-MM-DD.');
+    this.updateData((data) => ({
+      ...data,
+      records: data.records.filter((record) => record.habitId !== habitId || record.date !== date),
+    }));
+  }
+
+  private writeRecord(
+    habitId: string,
+    date: string,
+    getValue: (habit: Habit, record: HabitRecord | undefined) => boolean | number,
+  ): HabitRecord {
     if (!isLocalDateKey(date)) throw new Error('La fecha del registro debe ser un día válido en formato AAAA-MM-DD.');
 
     return this.updateData((data) => {
       const habit = this.requireHabit(data, habitId);
+      const existing = data.records.find((item) => item.habitId === habitId && item.date === date);
+      const value = getValue(habit, existing);
       let completed: boolean;
       if (habit.type === 'boolean') {
         if (typeof value !== 'boolean') throw new Error('Este hábito requiere un valor de sí o no.');
@@ -176,14 +225,17 @@ export class HabitService {
         completed = value >= habit.target;
       }
 
-      const record: HabitRecord = { habitId, date, value, completed };
+      const record: HabitRecord = {
+        habitId, date, value, completed, habitName: habit.name,
+        ...(habit.type === 'boolean' ? {} : { goal: { target: habit.target, unit: habit.unit } }),
+      };
       const records = data.records.filter((item) => item.habitId !== habitId || item.date !== date);
       return { ...data, records: [...records, record] };
     }).records.at(-1)!;
   }
 
   getRecords(habitId?: string): readonly HabitRecord[] {
-    return (this.data()?.records ?? [])
+    return this.records()
       .filter((record) => habitId === undefined || record.habitId === habitId)
       .sort((first, second) => second.date.localeCompare(first.date));
   }
@@ -191,7 +243,7 @@ export class HabitService {
   private async load(): Promise<void> {
     const stored = this.readData();
     if (stored !== null) {
-      this.data.set(stored);
+      this.loadStored(stored);
       return;
     }
 
@@ -206,10 +258,32 @@ export class HabitService {
     // Otra pestaña pudo guardar datos mientras se descargaba el JSON inicial.
     const latest = this.readData();
     if (latest !== null) {
-      this.data.set(latest);
+      this.loadStored(latest);
     } else {
-      this.persist({ habits: seed, records: [] });
+      this.persist({ habits: seed, records: [], schedule: currentSchedule(seed, localDateKey()) });
     }
+  }
+
+  private loadStored(data: HabitData): void {
+    if (data.schedule === undefined) {
+      // El almacenamiento anterior conserva registros, pero carece de programación histórica.
+      const tracked = { ...data, schedule: currentSchedule(data.habits, localDateKey()) };
+      try {
+        this.persist(tracked);
+      } catch {
+        this.data.set(data);
+      }
+    } else {
+      this.data.set(data);
+    }
+  }
+
+  private replaceHabit(data: HabitData, habit: Habit): HabitData {
+    return {
+      ...data,
+      habits: data.habits.map((item) => item.id === habit.id ? habit : item),
+      schedule: recordSchedule(data.schedule ?? [], habit.id, localDateKey(), habit.active ? habit.frequency : null),
+    };
   }
 
   private buildHabit(id: string, input: HabitInput): Habit {
@@ -243,7 +317,10 @@ export class HabitService {
       this.persistenceErrorState.set(message);
       throw new Error(message);
     }
-    return this.persist(change(current));
+    const known = current.schedule === undefined
+      ? { ...current, schedule: currentSchedule(current.habits, localDateKey()) }
+      : current;
+    return this.persist(change(known));
   }
 
   private readData(): HabitData | null {
@@ -251,7 +328,7 @@ export class HabitService {
       const stored = this.storage.read(storageKey);
       if (stored === null) return null;
       if (!isHabitData(stored.value)) throw new Error('Los datos guardados tienen un formato inválido.');
-      return stored.value;
+      return { ...stored.value, records: uniqueRecords(stored.value.records) };
     } catch (error) {
       if (error instanceof Error) this.persistenceErrorState.set(error.message);
       throw error;
