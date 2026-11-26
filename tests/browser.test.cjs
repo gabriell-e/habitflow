@@ -37,9 +37,17 @@ async function withBrowser(scenario, { seedFails = false } = {}) {
     let startupError;
     browser.on('error', (error) => { startupError = error; });
     const portFile = path.join(profile, 'DevToolsActivePort');
-    for (let i = 0; i < 100 && !fs.existsSync(portFile) && !startupError; i++) await wait(50);
+    let port;
+    for (let i = 0; i < 100 && !port && !startupError; i++) {
+      try {
+        port = fs.readFileSync(portFile, 'utf8').split(/\r?\n/)[0];
+      } catch (error) {
+        if (!['ENOENT', 'EBUSY', 'EACCES'].includes(error.code)) throw error;
+      }
+      if (!port) await wait(50);
+    }
     if (startupError) throw new Error('Indica la ruta de Chrome con CHROME_PATH.', { cause: startupError });
-    const port = fs.readFileSync(portFile, 'utf8').split(/\r?\n/)[0];
+    assert.ok(port, 'Chrome no publicó el puerto de DevTools.');
     const [page] = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
     socket = new WebSocket(page.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
@@ -82,7 +90,7 @@ async function withBrowser(scenario, { seedFails = false } = {}) {
         if (!element || element.disabled || (element.tagName !== 'BUTTON' && !element.classList.contains('hydrated'))) {
           return false;
         }
-        const control = element.shadowRoot?.querySelector('button,a') ?? element;
+        const control = element.shadowRoot?.querySelector('button,a,input[type=checkbox]') ?? element;
         if (control.disabled) return false;
         control.click();
         return true;
@@ -129,6 +137,9 @@ const card = (name) => `[...document.querySelectorAll('app-today ion-card')].fin
 const button = (name, action) => `[...(${card(name)})?.querySelectorAll('ion-button')??[]].find(e=>e.textContent.trim()===${JSON.stringify(action)})`;
 const hasCardText = (name, text) => `(${card(name)})?.textContent.includes(${JSON.stringify(text)})`;
 const tab = (name) => `document.querySelector('ion-tab-button[tab="${name}"]')`;
+const habitCard = (name) => `[...document.querySelectorAll('app-habits .habit-row')].find(e=>e.querySelector('ion-card-title')?.textContent.trim()===${JSON.stringify(name)})`;
+const openHabitMenu = (click, name) => click(`(${habitCard(name)})?.querySelector('.habit-menu-trigger')`);
+const menuOption = (label) => `[...document.querySelectorAll('ion-popover:not(.overlay-hidden) ion-item')].find(e=>e.textContent.trim()===${JSON.stringify(label)})`;
 
 test('Hoy registra, corrige y persiste las tres modalidades', async () => {
   await withBrowser(async ({ call, run, click, until }) => {
@@ -177,13 +188,14 @@ test('Hoy registra, corrige y persiste las tres modalidades', async () => {
     await run("changeDay('2026-11-30T00:01:00')");
     await until(hasCardText('Preparar la jornada', 'Pendiente'));
     await run("changeDay('2026-11-30T23:59:59.800')");
-    await until("document.querySelector('app-today ion-card-subtitle')?.textContent.includes('diciembre')");
+    await until("document.querySelector('app-today time')?.textContent.includes('diciembre')");
     await click(button('Preparar la jornada', 'Completar'));
     await until(storage + ".records.some(record=>record.date==='2026-12-01')");
     await click(tab('habitos'));
-    const meditar = "[...document.querySelectorAll('app-habits ion-card')].find(card=>card.querySelector('ion-card-title')?.textContent.trim()==='Meditar')";
-    await click(`[...(${meditar})?.querySelectorAll('ion-button')??[]].find(item=>item.textContent.trim()==='Desactivar')`);
-    await until(`(${meditar})?.textContent.includes('Inactivo')`);
+    const meditar = habitCard('Meditar');
+    await click(`(${meditar})?.querySelector('ion-toggle')`);
+    await until(`(${meditar})?.querySelector('ion-toggle')?.checked === false
+      && ${storage}.habits.find(habit=>habit.id==='example-meditation').active === false`);
     await click(tab('hoy'));
     await until(`location.pathname==='/tabs/hoy' && !(${card('Meditar')})`);
   });
@@ -271,11 +283,10 @@ test('Progreso actualiza porcentajes, filtros, calendario e historial al navegar
     await until(progressText('Resumen', 'no hay suficientes datos'));
 
     await go('habitos');
-    const habitCard = "[...document.querySelectorAll('app-habits ion-card')].find(e=>e.querySelector('ion-card-title')?.textContent.trim()==='Meditar')";
-    const remove = `[...(${habitCard})?.querySelectorAll('ion-button')??[]].find(e=>e.textContent.trim()==='Eliminar')`;
-    await click(remove);
+    await openHabitMenu(click, 'Meditar');
+    await click(menuOption('Eliminar'));
     await alertButton('Eliminar');
-    await until(`!(${habitCard}) && !(${alert})`);
+    await until(`!(${habitCard('Meditar')}) && !(${alert})`);
     await go('progreso');
     await click(progressButton('Anterior'));
     await select('Meditar · Eliminado');
@@ -294,14 +305,313 @@ test('Hoy y Progreso muestran carga, recuperan un error de origen y respetan una
     await until("document.querySelector('app-progress [role=alert]')?.textContent.includes('iniciales')");
     assert.equal(await run(storage), null);
     restoreSource();
-    await click("document.querySelector('app-progress ion-button')");
+    await click("document.querySelector('app-progress .surface-error ion-button')");
     await until("document.querySelector('app-progress')?.textContent.includes('No hay registros')");
     await click(tab('hoy'));
     await until(hasCardText('Meditar', 'Pendiente'));
     assert.equal(await run(storage + '.habits.length'), 3);
     await run("localStorage.setItem('habitflow.data.v1',JSON.stringify({habits:[],records:[],schedule:[]}))");
     await call('Page.reload');
-    await until("document.querySelector('app-today')?.textContent.includes('No tienes hábitos')");
-    assert.equal(await run(storage + '.habits.length'), 0);
+    for (const scheme of ['light', 'dark']) {
+      await call('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
+      if (await run("location.pathname !== '/tabs/hoy'")) await click(tab('hoy'));
+      await until("document.querySelector('app-today')?.textContent.includes('No tienes hábitos')");
+      await click(tab('habitos'));
+      await until("document.querySelector('app-habits')?.textContent.includes('Aún no tienes hábitos')");
+      await click(tab('progreso'));
+      await until("document.querySelector('app-progress')?.textContent.includes('No hay registros en este período')");
+      assert.equal(await run(storage + '.habits.length'), 0);
+    }
   }, { seedFails: true });
+});
+
+function contrast(first, second) {
+  const luminance = (color) => {
+    const hex = color.trim().slice(1);
+    const channels = hex.length === 3 ? hex.split('').map((digit) => digit + digit) : hex.match(/../g);
+    const [red, green, blue] = channels.map((channel) => {
+      const value = parseInt(channel, 16) / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+  };
+  const values = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (values[0] + 0.05) / (values[1] + 0.05);
+}
+
+test('el diseño se adapta a cuatro anchos y a los temas claro y oscuro', async () => {
+  await withBrowser(async ({ call, run, click, until }) => {
+    const pages = { hoy: 'today', habitos: 'habits', progreso: 'progress' };
+    const go = async (name) => {
+      if (await run('location.pathname') !== '/tabs/' + name) await click(tab(name));
+      await until(`location.pathname === '/tabs/${name}' && !!document.querySelector('app-${pages[name]}:not(.ion-page-hidden):not(.ion-page-invisible) .page-shell h1')`);
+    };
+    const viewport = async (width, height) => {
+      await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
+      await until(`window.innerWidth === ${width} && window.innerHeight === ${height}`);
+    };
+    const theme = async (scheme) => {
+      await call('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-color-scheme', value: scheme }, { name: 'prefers-reduced-motion', value: 'reduce' }],
+      });
+      await until(`matchMedia('(prefers-color-scheme: ${scheme})').matches`);
+      await until(`document.documentElement.classList.contains('ion-palette-dark') === ${scheme === 'dark'}`);
+    };
+    const overflow = async (content) => {
+      const scroll = `document.querySelector(${JSON.stringify(content)})?.shadowRoot?.querySelector('.inner-scroll')`;
+      await until(`(${scroll})?.clientWidth > 0`);
+      return run(`(${scroll}).scrollWidth > (${scroll}).clientWidth + 1`);
+    };
+    const modal = "document.querySelector('ion-modal:not(.overlay-hidden)')";
+    const form = "document.querySelector('app-habit-form')";
+    const modalButton = (label) => `[...(${modal})?.querySelectorAll('ion-button')??[]].find(e=>e.textContent.trim()===${JSON.stringify(label)})`;
+    const create = "[...document.querySelectorAll('app-habits .page-heading ion-button')].find(e=>e.textContent.trim()==='Nuevo hábito')";
+    const fill = async (control, value) => {
+      const field = `(${form})?.querySelector('[formcontrolname=${control}] input')`;
+      await until(`Boolean(${field})`);
+      await run(`(() => {
+        const field=${field};
+        field.value=${JSON.stringify(value)};
+        field.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true}));
+      })()`);
+    };
+    const select = async (control, label) => {
+      await click(`(${form})?.querySelector('ion-select[formcontrolname=${control}]')`);
+      const alert = "document.querySelector('ion-alert:not(.overlay-hidden)')";
+      for (const text of [label, 'Aceptar']) {
+        await click(`[...(${alert})?.querySelectorAll('button')??[]].find(e=>e.textContent.trim()===${JSON.stringify(text)})`);
+      }
+      await until(`!(${alert})`);
+    };
+    const key = async (value, code, virtual) => {
+      const options = { key: value, code, windowsVirtualKeyCode: virtual, nativeVirtualKeyCode: virtual };
+      const text = value === 'Enter' ? '\r' : undefined;
+      await call('Input.dispatchKeyEvent', { type: text ? 'keyDown' : 'rawKeyDown', ...options, text });
+      await call('Input.dispatchKeyEvent', { type: 'keyUp', ...options });
+    };
+
+    await until(hasCardText('Meditar', 'Pendiente'));
+    await run(`(() => {
+      const data=${storage};
+      const icons=['leaf-outline','book-outline','checkmark-circle-outline'];
+      const colors=['success','tertiary','primary'];
+      data.habits=data.habits.map((habit,i)=>({...habit,icon:icons[i],color:colors[i]}));
+      data.habits.push({id:'example-water',name:'Tomar agua',type:'quantity',target:6,unit:'vasos',
+        active:false,frequency:{kind:'daily'},icon:'water-outline',color:'secondary'});
+      data.schedule=data.habits.map(habit=>({habitId:habit.id,date:'2026-11-16',frequency:habit.active?habit.frequency:null}));
+      const activity=(habitId,date,value,completed)=> {
+        const habit=data.habits.find(item=>item.id===habitId);
+        return {habitId,date,value,completed,habitName:habit.name,
+          ...(habit.type==='boolean'?{}:{goal:{target:habit.target,unit:habit.unit}})};
+      };
+      data.records=[
+        activity('example-meditation','2026-11-23',10,true), activity('example-meditation','2026-11-24',10,true),
+        activity('example-meditation','2026-11-25',7,false), activity('example-reading','2026-11-23',15,true),
+        activity('example-reading','2026-11-25',15,true), activity('example-planning','2026-11-23',true,true),
+      ];
+      localStorage.setItem('habitflow.data.v1',JSON.stringify(data));
+    })()`);
+    await call('Page.reload');
+    await until(hasCardText('Meditar', 'Parcial'));
+
+    for (const scheme of ['light', 'dark']) {
+      await theme(scheme);
+      const colors = await run(`(() => {
+        const css=getComputedStyle(document.documentElement);
+        const names=['--ion-background-color','--ion-text-color','--hf-surface','--hf-muted','--ion-color-primary',
+          '--ion-color-primary-contrast','--hf-control','--hf-progress-fill','--hf-soft','--hf-progress','--hf-hero-track',
+          '--ion-color-success','--ion-color-warning','--ion-color-danger','--hf-warm','--hf-error-surface',
+          '--hf-border','--hf-input','--hf-selection'];
+        return Object.fromEntries(names.map(name=>[name,css.getPropertyValue(name).trim()]));
+      })()`);
+      const dark = scheme === 'dark';
+      assert.equal(colors['--ion-background-color'], dark ? '#141716' : '#f5f7f5');
+      assert.equal(colors['--hf-surface'], dark ? '#202422' : '#fff');
+      assert.equal(colors['--hf-border'], dark ? '#343b36' : '#e0e5e1');
+      assert.equal(colors['--ion-text-color'], dark ? '#e8ece9' : '#242925');
+      assert.equal(colors['--ion-color-primary'], dark ? '#a8cfb1' : '#244c3b');
+      for (const [first, second, minimum] of [
+        ['--ion-text-color', '--ion-background-color', 4.5], ['--hf-muted', '--hf-surface', 4.5],
+        ['--hf-muted', '--ion-background-color', 4.5], ['--ion-color-primary-contrast', '--ion-color-primary', 4.5],
+        ['--hf-control', '--hf-surface', 3], ['--hf-control', '--hf-input', 3],
+        ['--hf-progress-fill', '--hf-soft', 3],
+        ['--hf-progress', '--hf-hero-track', 3],
+        ['--ion-color-success', '--hf-selection', 4.5], ['--ion-color-warning', '--hf-warm', 4.5],
+        ['--ion-color-primary', '--hf-selection', 4.5],
+        ['--ion-color-danger', '--hf-error-surface', 4.5],
+      ]) {
+        assert.ok(contrast(colors[first], colors[second]) >= minimum, `${scheme}: ${first} / ${second}`);
+      }
+
+      for (const width of [360, 390, 768, 1366]) {
+        await viewport(width, width === 1366 ? 1150 : 844);
+        for (const [name, page] of Object.entries(pages)) {
+          await go(name);
+          await until(`(${tab(name)})?.classList.contains('tab-selected') === true`);
+          assert.equal(await overflow(`app-${page} > ion-content`), false, `${name} ${scheme} ${width}px`);
+          assert.equal(await run("document.querySelectorAll('ion-tab-button').length"), 3);
+          const touches = await run("Array.from(document.querySelectorAll('ion-tab-button'),e=>e.getBoundingClientRect().height)");
+          assert.ok(touches.every((height) => height >= 44));
+          if (name === 'progreso') {
+            assert.ok(await run("document.querySelector('app-progress .calendar button').getBoundingClientRect().height >= 44"));
+          }
+          if (process.env.HABITFLOW_SCREENSHOTS === '1' && (width === 390 || (width === 1366 && name === 'progreso'))) {
+            if (width === 390 && name === 'hoy') await viewport(390, 1000);
+            await until(`Array.from(document.querySelectorAll('app-${page} ion-icon')).every(e=>e.classList.contains('hydrated'))`);
+            const screenshot = await call('Page.captureScreenshot', { format: 'png' });
+            const folder = path.resolve('docs/screenshots');
+            fs.mkdirSync(folder, { recursive: true });
+            fs.writeFileSync(path.join(folder, `${name}-${scheme === 'light' ? 'claro' : 'oscuro'}-${width}.png`), Buffer.from(screenshot.data, 'base64'));
+            if (width === 390 && name === 'hoy') await viewport(390, 844);
+          }
+        }
+
+        await go('habitos');
+        await until(`(() => {
+          const host = ${create};
+          const control = host?.shadowRoot?.querySelector('button');
+          if (!control || control.disabled) return false;
+          control.focus();
+          return host.shadowRoot.activeElement === control;
+        })()`);
+        await key('Enter', 'Enter', 13);
+        await until(`Boolean(${form}?.querySelector('input'))`);
+        assert.equal(await overflow('ion-modal:not(.overlay-hidden) ion-content'), false, `formulario ${scheme} ${width}px`);
+        await run(`(${form}).querySelector('[formcontrolname=name] input').focus()`);
+        await key('Tab', 'Tab', 9);
+        await until("document.activeElement?.matches('textarea') === true");
+        assert.equal(await run(`getComputedStyle((${form}).querySelector('ion-textarea')).outlineStyle`), 'solid');
+        if (width === 360) {
+          await click(modalButton('Guardar'));
+          await until(`(${form})?.querySelector('[role=alert]')?.textContent.includes('Escribe un nombre')`);
+        }
+        if (process.env.HABITFLOW_SCREENSHOTS === '1' && width === 390) {
+          await run('document.activeElement.blur()');
+          const screenshot = await call('Page.captureScreenshot', { format: 'png' });
+          fs.writeFileSync(path.resolve(`docs/screenshots/formulario-${scheme === 'light' ? 'claro' : 'oscuro'}-390.png`),
+            Buffer.from(screenshot.data, 'base64'));
+        }
+        await click(modalButton('Cancelar'));
+        await until(`!(${modal})`);
+      }
+    }
+
+    await viewport(360, 844);
+    await go('habitos');
+    await click(create);
+    await fill('name', 'Estirar');
+    await select('type', 'Duración');
+    await fill('target', '5');
+    await fill('unit', 'minutos');
+    await select('frequency', 'Veces por semana');
+    await select('times', '2');
+    await click(modalButton('Guardar'));
+    await until(`Boolean(${habitCard('Estirar')}) && !(${modal})`);
+    assert.deepEqual(await run(storage + ".habits.find(habit=>habit.name==='Estirar').frequency"), { kind: 'weekly', times: 2 });
+    await click("document.querySelector('app-habits ion-segment-button[value=active]')");
+    await until(`!(${habitCard('Tomar agua')}) && Boolean(${habitCard('Meditar')})`);
+    await click("document.querySelector('app-habits ion-segment-button[value=inactive]')");
+    await until(`Boolean(${habitCard('Tomar agua')}) && !(${habitCard('Meditar')})`);
+    await click(`(${habitCard('Tomar agua')})?.querySelector('ion-toggle')`);
+    await until("document.querySelector('app-habits .state-card')?.textContent.includes('No hay hábitos inactivos')");
+    await click("document.querySelector('app-habits .state-card ion-button')");
+    await until(`(${habitCard('Tomar agua')})?.querySelector('ion-toggle')?.checked === true`);
+    const trigger = `(${habitCard('Tomar agua')}).querySelector('.habit-menu-trigger')`;
+    await run(`(${trigger}).shadowRoot.querySelector('button').focus()`);
+    await key('Enter', 'Enter', 13);
+    await until(`(${menuOption('Editar')})?.classList.contains('hydrated')`);
+    await run(`(${menuOption('Editar')}).shadowRoot.querySelector('button').focus()`);
+    await key('Enter', 'Enter', 13);
+    await until(`(${form})?.querySelector('[formcontrolname=name] input')?.value === 'Tomar agua'`);
+    const longName = 'HábitoDePrueba'.repeat(12);
+    await fill('name', longName);
+    await click(modalButton('Guardar'));
+    await until(`Boolean(${habitCard(longName)}) && !(${modal})`);
+    assert.equal(await overflow('app-habits > ion-content'), false);
+    await go('hoy');
+    await until(hasCardText(longName, 'Pendiente'));
+    assert.equal(await overflow('app-today > ion-content'), false);
+    await run(`(() => {
+      const field=(${card('Meditar')}).querySelector('input');
+      field.focus();
+      field.value='8';
+      field.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true}));
+    })()`);
+    await key('Enter', 'Enter', 13);
+    await until(hasCardText('Meditar', 'Registrado: 8'));
+
+    await go('habitos');
+    await run("window.savedSetItem=Storage.prototype.setItem;Storage.prototype.setItem=()=>{throw new DOMException('quota','QuotaExceededError')}");
+    await click(`(${habitCard(longName)})?.querySelector('ion-toggle')`);
+    await until("document.querySelector('app-habits [role=alert]')?.textContent.includes('guardar')");
+    assert.equal(await run(`(${habitCard(longName)}).querySelector('ion-toggle').checked`), true);
+    await run('Storage.prototype.setItem=window.savedSetItem');
+    await run(`(${tab('progreso')}).shadowRoot.querySelector('a').focus()`);
+    await key('Enter', 'Enter', 13);
+    await until("location.pathname === '/tabs/progreso'");
+    assert.equal(await overflow('app-progress > ion-content'), false);
+  });
+});
+
+test('la apariencia manual se conserva entre pestañas y recargas y Sistema sigue al equipo', async () => {
+  await withBrowser(async ({ call, run, click, until }) => {
+    const applySystem = (scheme) => call('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-color-scheme', value: scheme }],
+    });
+    const palette = "document.documentElement.classList.contains('ion-palette-dark')";
+    const key = 'habitflow.appearance.v1';
+    const saved = `JSON.parse(localStorage.getItem('${key}'))`;
+    const popover = "document.querySelector('ion-popover.appearance-popover:not(.overlay-hidden)')";
+    const trigger = "document.querySelector('.ion-page:not(.ion-page-hidden):not(.ion-page-invisible) .appearance-trigger')";
+    const open = () => click(trigger);
+    const close = async () => {
+      await run(`(${popover}).dismiss()`);
+      await until(`!(${popover})`);
+    };
+    const choose = async (preference) => {
+      await open();
+      await click(`(${popover})?.querySelector('ion-radio[value=${preference}]')`);
+    };
+    await until(hasCardText('Meditar', 'Pendiente'));
+    const recordsBefore = await run(storage);
+    await applySystem('dark');
+    await until(palette);
+    await choose('light');
+    await until(`${saved} === 'light' && !${palette}`);
+    await close();
+    await click(tab('habitos'));
+    await until("location.pathname === '/tabs/habitos'");
+    await open();
+    await until(`(${popover})?.querySelector('ion-radio-group')?.value === 'light'`);
+    await close();
+    await run('window.beforeReload = true');
+    await call('Page.reload');
+    await until(`!window.beforeReload && Boolean(${trigger})`);
+    assert.equal(await run(saved), 'light');
+    assert.equal(await run(palette), false);
+    await open();
+    await until(`(${popover})?.querySelector('ion-radio-group')?.value === 'light'`);
+    await close();
+
+    await applySystem('light');
+    await choose('dark');
+    await until(`${saved} === 'dark' && ${palette}`);
+    await close();
+    await choose('system');
+    await until(`${saved} === 'system' && !${palette}`);
+    await close();
+    await applySystem('dark');
+    await until(palette);
+
+    await run(`window.savedSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(name,...args){
+      if(name==='${key}')throw new DOMException('quota','QuotaExceededError');
+      return window.savedSetItem.call(this,name,...args);
+    }`);
+    await choose('light');
+    await until(`!(${palette}) && Boolean((${popover})?.querySelector('[role=status]'))`);
+    assert.equal(await run(saved), 'system');
+    await run('Storage.prototype.setItem=window.savedSetItem');
+    await close();
+    assert.deepEqual(await run(storage), recordsBefore);
+  });
 });
