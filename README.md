@@ -2,11 +2,25 @@
 
 Proyecto individual de Programación VI de la Universidad del Norte (UniNorte). La aplicación usa Ionic Angular standalone y cuenta con tres pestañas: Hoy, Hábitos y Progreso.
 
-En la pestaña **Hábitos** puedes crear, editar, activar, desactivar y eliminar hábitos. El formulario admite hábitos de sí o no, cantidad o duración, con frecuencia diaria, por días específicos o por veces a la semana. También puedes añadir una descripción y elegir el color y el icono. Al eliminar un hábito se conservan sus registros.
+Autor · Gabriel ([gabriell-e](https://github.com/gabriell-e)).
+
+En la pestaña **Hábitos** puedes filtrar por estado, crear hábitos, activarlos con el interruptor y usar el menú de cada tarjeta para editar o eliminar. El formulario admite hábitos de sí o no, cantidad o duración, con frecuencia diaria, por días específicos o por veces a la semana. También puedes añadir una descripción y elegir el color y el icono. Al eliminar un hábito se conservan sus registros.
 
 En **Hoy** puedes completar y deshacer hábitos de sí o no, sumar o corregir cantidades y registrar duraciones manualmente. Los registros se guardan por hábito y fecha local. En **Progreso** puedes consultar el cumplimiento semanal o mensual, las rachas, el calendario y el historial, con un filtro por hábito.
 
 En la primera ejecución la aplicación carga ejemplos desde `src/assets/data/habits.json`. Los cambios se guardan en `localStorage` y se conservan al recargar en el mismo navegador y origen.
+
+### Capturas
+
+El botón **Apariencia** de la cabecera permite elegir Sistema, Claro u Oscuro. Sistema sigue la preferencia del equipo. La selección se guarda en el navegador. Las capturas usan datos de ejemplo.
+
+| Vista | Claro | Oscuro |
+|---|---|---|
+| Hoy · móvil | [Ver](docs/screenshots/hoy-claro-390.png) | [Ver](docs/screenshots/hoy-oscuro-390.png) |
+| Hábitos · móvil | [Ver](docs/screenshots/habitos-claro-390.png) | [Ver](docs/screenshots/habitos-oscuro-390.png) |
+| Progreso · móvil | [Ver](docs/screenshots/progreso-claro-390.png) | [Ver](docs/screenshots/progreso-oscuro-390.png) |
+| Progreso · escritorio | [Ver](docs/screenshots/progreso-claro-1366.png) | [Ver](docs/screenshots/progreso-oscuro-1366.png) |
+| Formulario · móvil | [Ver](docs/screenshots/formulario-claro-390.png) | [Ver](docs/screenshots/formulario-oscuro-390.png) |
 
 ### Cómo se calcula el progreso
 
@@ -36,3 +50,5 @@ npm run test:browser
 ```
 
 La prueba de navegador usa el build de `www/` y Chrome instalado. Si Chrome está en otra ubicación, define `CHROME_PATH` con la ruta a su ejecutable. Las pruebas usan un perfil temporal y un reloj de prueba para reproducir los cambios de fecha.
+
+Para regenerar las capturas, define `HABITFLOW_SCREENSHOTS=1` y ejecuta `npm run test:browser` después de compilar. Los PNG se guardan en `docs/screenshots/`.
