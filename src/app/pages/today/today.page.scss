@@ -1,0 +1,114 @@
+.page-heading time {
+  display: inline-block;
+}
+
+.page-heading time::first-letter {
+  text-transform: uppercase;
+}
+
+.page-shell .daily-summary {
+  --background: var(--hf-hero);
+  --color: var(--hf-hero-text);
+  color: var(--hf-hero-text);
+  border-color: var(--hf-hero);
+}
+
+.daily-summary ion-card-title {
+  color: var(--hf-hero-muted);
+  font-size: 0.875rem;
+}
+
+.daily-summary ion-card-content {
+  padding-top: 0.25rem;
+}
+
+.summary-values {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.625rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-values strong {
+  font-size: clamp(1.275rem, 2.5vw, 1.75rem);
+  letter-spacing: -0.04em;
+}
+
+.summary-values span {
+  color: var(--hf-accent);
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.daily-summary ion-progress-bar {
+  --background: var(--hf-hero-track);
+  --progress-background: var(--hf-progress);
+}
+
+.daily-summary + .surface-error {
+  margin-top: 0.75rem;
+}
+
+.habit-grid {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.daily-habit {
+  display: flex;
+  flex-direction: column;
+}
+
+.daily-habit .status-pill {
+  align-self: flex-start;
+}
+
+.habit-body {
+  display: grid;
+  gap: 0.625rem;
+  justify-items: stretch;
+  flex: 1;
+}
+
+.habit-measure {
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  color: var(--hf-muted);
+}
+
+.habit-measure strong {
+  color: var(--ion-text-color);
+}
+
+.weekly-detail {
+  margin-top: 0.125rem;
+  font-size: 0.8rem;
+  font-weight: 550;
+}
+
+.record-controls {
+  display: flex;
+  align-items: end;
+  gap: 0.375rem;
+}
+
+.record-controls ion-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.record-controls ion-button {
+  --padding-start: 0.75rem;
+  --padding-end: 0.75rem;
+}
+
+@media (min-width: 42rem) {
+  .habit-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 62rem) {
+  .habit-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

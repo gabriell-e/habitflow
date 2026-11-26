@@ -1,9 +1,11 @@
 import { Component, computed, OnInit, signal } from '@angular/core';
 import {
   IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle,
-  IonContent, IonHeader, IonInput, IonProgressBar, IonSpinner, IonText, IonTitle, IonToolbar,
+  IonContent, IonHeader, IonInput, IonProgressBar, IonSpinner, IonText, IonToolbar,
 } from '@ionic/angular';
 
+import { AppBrandComponent } from '../../components/app-brand/app-brand.component';
+import { HabitSymbolComponent } from '../../components/habit-symbol/habit-symbol.component';
 import { dailyHabits } from '../../domain/habit-tracking';
 import { formatLocalDate } from '../../domain/local-calendar';
 import { localDateKey } from '../../models/habit-record.model';
@@ -15,16 +17,19 @@ type DailyItem = ReturnType<typeof dailyHabits>[number];
 @Component({
   selector: 'app-today',
   imports: [
-    IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle,
-    IonContent, IonHeader, IonInput, IonProgressBar, IonSpinner, IonText, IonTitle, IonToolbar,
+    AppBrandComponent, HabitSymbolComponent, IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader,
+    IonCardSubtitle, IonCardTitle, IonContent, IonHeader, IonInput, IonProgressBar, IonSpinner, IonText, IonToolbar,
   ],
   templateUrl: './today.page.html',
+  styleUrl: './today.page.scss',
 })
 export class TodayPage implements OnInit {
   protected readonly items = computed(() => dailyHabits(
     this.habitService.habits(), this.habitService.records(), this.habitService.schedule(), this.calendar.today(),
   ));
   protected readonly completed = computed(() => this.items().filter(({ status }) => status === 'Completado').length);
+  protected readonly fraction = computed(() => this.items().length ? this.completed() / this.items().length : 0);
+  protected readonly percentage = computed(() => Math.round(this.fraction() * 100));
   protected readonly dateLabel = computed(() => formatLocalDate(
     this.calendar.today(), { weekday: 'long', day: 'numeric', month: 'long' },
   ));
@@ -32,7 +37,7 @@ export class TodayPage implements OnInit {
 
   constructor(
     protected readonly habitService: HabitService,
-    private readonly calendar: LocalCalendarService,
+    protected readonly calendar: LocalCalendarService,
   ) {}
 
   ngOnInit(): void {
@@ -49,6 +54,11 @@ export class TodayPage implements OnInit {
   protected saveAmount(item: DailyItem, raw: string | number | null | undefined): void {
     const value = raw == null || String(raw).trim() === '' ? NaN : Number(raw);
     this.perform(item, () => this.habitService.saveRecord(item.habit.id, value, item.date));
+  }
+
+  protected submitAmount(event: Event, item: DailyItem, raw: string | number | null | undefined): void {
+    event.preventDefault();
+    this.saveAmount(item, raw);
   }
 
   protected increment(item: DailyItem): void {

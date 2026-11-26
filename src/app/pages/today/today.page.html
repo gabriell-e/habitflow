@@ -1,95 +1,122 @@
 <ion-header>
-  <ion-toolbar><ion-title>Hoy</ion-title></ion-toolbar>
+  <ion-toolbar class="app-toolbar"><app-brand></app-brand></ion-toolbar>
 </ion-header>
 
 <ion-content>
-  @if (habitService.loading()) {
-    <ion-card><ion-card-content><div role="status">
-      <ion-spinner aria-hidden="true"></ion-spinner> Cargando hábitos…
-    </div></ion-card-content></ion-card>
-  } @else if (habitService.loadError(); as message) {
-    <ion-card><ion-card-content>
-      <ion-text color="danger"><p role="alert">{{ message }}</p></ion-text>
-      <ion-button (click)="habitService.initialize()">Reintentar</ion-button>
-    </ion-card-content></ion-card>
-  } @else {
-    <ion-card>
-      <ion-card-header>
-        <ion-card-title>Resumen del día</ion-card-title>
-        <ion-card-subtitle>{{ dateLabel() }}</ion-card-subtitle>
-      </ion-card-header>
-      <ion-card-content>
-        @if (items().length) {
-          <p>{{ completed() }} de {{ items().length }} hábitos de la lista completados.</p>
-          <ion-progress-bar aria-label="Cumplimiento de la lista de hoy" [value]="completed() / items().length"></ion-progress-bar>
-        } @else {
-          <p>No tienes hábitos para registrar hoy.</p>
-        }
-        @if (!actionError() && habitService.persistenceError(); as message) {
-          <ion-text color="danger"><p role="alert">{{ message }}</p></ion-text>
-        }
-      </ion-card-content>
-    </ion-card>
+  <main class="page-shell">
+    <div class="page-heading">
+      <h1>Hoy</h1>
+      <p><time [attr.datetime]="calendar.today()">{{ dateLabel() }}</time></p>
+    </div>
 
-    @for (item of items(); track item.date + item.habit.id) {
-      <ion-card>
-        <ion-card-header>
-          <ion-card-title>{{ item.habit.name }}</ion-card-title>
-          @if (item.weekly; as weekly) {
-            <ion-card-subtitle>{{ weekly.done }} de {{ weekly.quota }} días completados esta semana</ion-card-subtitle>
-          }
-        </ion-card-header>
+    @if (habitService.loading()) {
+      <ion-card class="state-card"><ion-card-content><div role="status">
+        <ion-spinner aria-hidden="true"></ion-spinner> Cargando hábitos…
+      </div></ion-card-content></ion-card>
+    } @else if (habitService.loadError(); as message) {
+      <ion-card class="surface-error"><ion-card-content>
+        <ion-text color="danger"><p role="alert">{{ message }}</p></ion-text>
+        <ion-button fill="outline" (click)="habitService.initialize()">Reintentar</ion-button>
+      </ion-card-content></ion-card>
+    } @else {
+      <ion-card class="daily-summary">
+        <ion-card-header><ion-card-title>Resumen del día</ion-card-title></ion-card-header>
         <ion-card-content>
-          <ion-badge [color]="item.status === 'Completado' ? 'success' : item.status === 'Parcial' ? 'warning' : 'medium'">{{ item.status }}</ion-badge>
-          @if (item.habit.type === 'boolean') {
-            <p>Objetivo: completar el hábito.</p>
+          @if (items().length) {
+            <div class="summary-values">
+              <p><strong>{{ completed() }} de {{ items().length }}</strong> hábitos completados</p>
+              <span>{{ percentage() }} %</span>
+            </div>
+            <ion-progress-bar aria-label="Cumplimiento de la lista de hoy" [value]="fraction()"></ion-progress-bar>
           } @else {
-            <p>Objetivo: {{ item.habit.target }} {{ item.habit.unit }}.</p>
-          }
-          @if (item.record; as record) {
-            @if (typeof record.value === 'boolean') {
-              <p>Registrado: {{ record.value ? 'Sí' : 'No' }}.</p>
-            } @else {
-              <p>Registrado: {{ record.value }} {{ record.goal?.unit ?? '' }}.</p>
-              @if (record.goal && (record.goal.target !== item.habit.target || record.goal.unit !== item.habit.unit)) {
-                <p>Objetivo del registro: {{ record.goal.target }} {{ record.goal.unit }}.</p>
-              }
-            }
-          } @else {
-            <p>Sin registro.</p>
-          }
-          @if (item.progress !== null) {
-            <ion-progress-bar [attr.aria-label]="'Progreso de ' + item.habit.name" [value]="item.progress"></ion-progress-bar>
-          } @else {
-            <p>El objetivo original del registro no está disponible.</p>
-          }
-          @if (item.habit.type === 'boolean') {
-            <ion-button (click)="toggle(item)">{{ item.record?.value === true ? 'Deshacer' : 'Completar' }}</ion-button>
-          } @else {
-            <ion-input
-              #amount
-              [label]="item.habit.type === 'duration' ? 'Duración (' + item.habit.unit + ')' : 'Cantidad (' + item.habit.unit + ')'"
-              labelPlacement="stacked"
-              type="number"
-              min="0"
-              step="any"
-              [value]="item.record?.goal?.unit === item.habit.unit ? item.amount : null"
-            ></ion-input>
-            <ion-button (click)="saveAmount(item, amount.value)">Guardar</ion-button>
-            @if (item.habit.type === 'quantity') {
-              <ion-button fill="outline" [disabled]="!item.canIncrement" (click)="increment(item)">+1</ion-button>
-              @if (!item.canIncrement) {
-                <p>Corrige el valor en la unidad actual para volver a usar +1.</p>
-              }
-            }
-          }
-          @if (actionError(); as error) {
-            @if (error.id === item.habit.id) {
-              <ion-text color="danger"><p role="alert">{{ error.text }}</p></ion-text>
-            }
+            <p>No tienes hábitos para registrar hoy.</p>
           }
         </ion-card-content>
       </ion-card>
+
+      @if (!actionError() && habitService.persistenceError(); as message) {
+        <ion-card class="surface-error"><ion-card-content>
+          <ion-text color="danger"><p role="alert">{{ message }}</p></ion-text>
+        </ion-card-content></ion-card>
+      }
+
+      @if (items().length) {
+        <h2 class="section-heading">Hábitos de hoy</h2>
+      }
+      <div class="habit-grid">
+        @for (item of items(); track item.date + item.habit.id) {
+          <ion-card class="daily-habit">
+            <ion-card-header class="habit-head">
+              <app-habit-symbol [habit]="item.habit"></app-habit-symbol>
+              <div>
+                <ion-card-title>{{ item.habit.name }}</ion-card-title>
+                <ion-card-subtitle>
+                  {{ item.habit.type === 'boolean' ? 'Objetivo: completar el hábito' : 'Objetivo: ' + item.habit.target + ' ' + item.habit.unit }}
+                </ion-card-subtitle>
+              </div>
+              <ion-badge class="status-pill" [color]="item.status === 'Completado' ? 'success' : item.status === 'Parcial' ? 'warning' : 'medium'">
+                {{ item.status }}
+              </ion-badge>
+            </ion-card-header>
+            <ion-card-content class="habit-body">
+              <div class="habit-measure">
+                @if (item.record; as record) {
+                  @if (typeof record.value === 'boolean') {
+                    <p>Registrado: {{ record.value ? 'Sí' : 'No' }}.</p>
+                  } @else {
+                    <p>Registrado: <strong>{{ record.value }} {{ record.goal?.unit ?? '' }}</strong></p>
+                    @if (record.goal && (record.goal.target !== item.habit.target || record.goal.unit !== item.habit.unit)) {
+                      <p>Objetivo del registro: {{ record.goal.target }} {{ record.goal.unit }}.</p>
+                    }
+                  }
+                } @else {
+                  <p>Sin registro.</p>
+                }
+                @if (item.progress !== null) {
+                  <ion-progress-bar [attr.aria-label]="'Progreso de ' + item.habit.name" [value]="item.progress"></ion-progress-bar>
+                } @else {
+                  <p>El objetivo original del registro no está disponible.</p>
+                }
+                @if (item.weekly; as weekly) {
+                  <p class="weekly-detail">{{ weekly.done }} de {{ weekly.quota }} días completados esta semana</p>
+                }
+              </div>
+
+              @if (item.habit.type === 'boolean') {
+                <ion-button expand="block" [fill]="item.record?.value === true ? 'outline' : 'solid'" (click)="toggle(item)">
+                  {{ item.record?.value === true ? 'Deshacer' : 'Completar' }}
+                </ion-button>
+              } @else {
+                <form class="record-controls" novalidate (submit)="submitAmount($event, item, amount.value)">
+                  <ion-input
+                    #amount
+                    class="field-control"
+                    [label]="item.habit.type === 'duration' ? 'Duración (' + item.habit.unit + ')' : 'Cantidad (' + item.habit.unit + ')'"
+                    labelPlacement="stacked"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="any"
+                    [value]="item.record?.goal?.unit === item.habit.unit ? item.amount : null"
+                  ></ion-input>
+                  <ion-button type="submit" [fill]="item.habit.type === 'quantity' ? 'outline' : 'solid'">Guardar</ion-button>
+                  @if (item.habit.type === 'quantity') {
+                    <ion-button type="button" [disabled]="!item.canIncrement" (click)="increment(item)">+1</ion-button>
+                  }
+                </form>
+                @if (item.habit.type === 'quantity' && !item.canIncrement) {
+                  <p>Corrige el valor en la unidad actual para volver a usar +1.</p>
+                }
+              }
+              @if (actionError(); as error) {
+                @if (error.id === item.habit.id) {
+                  <ion-text color="danger"><p role="alert">{{ error.text }}</p></ion-text>
+                }
+              }
+            </ion-card-content>
+          </ion-card>
+        }
+      </div>
     }
-  }
+  </main>
 </ion-content>
