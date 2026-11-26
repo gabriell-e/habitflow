@@ -5,7 +5,9 @@
     "scripts":  {
                     "start":  "ng serve",
                     "build":  "ng build",
-                    "typecheck":  "tsc --noEmit -p tsconfig.app.json"
+                    "typecheck":  "tsc --noEmit -p tsconfig.app.json",
+                    "test":  "node --test tests/progress.test.cjs",
+                    "test:browser":  "node --test tests/browser.test.cjs"
                 },
     "dependencies":  {
                          "@angular/common":  "21.2.25",
