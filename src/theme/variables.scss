@@ -1,0 +1,93 @@
+@use 'sass:color';
+
+@mixin ionic-color($name, $value, $contrast) {
+  --ion-color-#{$name}: #{$value};
+  --ion-color-#{$name}-rgb: #{color.channel($value, 'red', $space: rgb)}, #{color.channel($value, 'green', $space: rgb)}, #{color.channel($value, 'blue', $space: rgb)};
+  --ion-color-#{$name}-contrast: #{$contrast};
+  --ion-color-#{$name}-contrast-rgb: #{color.channel($contrast, 'red', $space: rgb)}, #{color.channel($contrast, 'green', $space: rgb)}, #{color.channel($contrast, 'blue', $space: rgb)};
+  --ion-color-#{$name}-shade: #{color.mix(#000, $value, 12%)};
+  --ion-color-#{$name}-tint: #{color.mix(#fff, $value, 10%)};
+}
+
+:root, :root.ios {
+  color-scheme: light;
+  --ion-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ion-background-color: #f5f7f5;
+  --ion-background-color-rgb: 245, 247, 245;
+  --ion-text-color: #242925;
+  --ion-text-color-rgb: 36, 41, 37;
+  --ion-card-background: var(--hf-surface);
+  --ion-toolbar-background: var(--hf-surface);
+  --ion-toolbar-color: var(--ion-text-color);
+  --ion-item-background: var(--hf-surface);
+  --ion-overlay-background-color: var(--hf-surface);
+  --ion-border-color: var(--hf-border);
+  --ion-tab-bar-background: var(--hf-surface);
+  --ion-tab-bar-color: var(--hf-muted);
+  --ion-tab-bar-color-selected: var(--ion-color-primary);
+
+  --hf-surface: #fff;
+  --hf-muted: #5f6861;
+  --hf-border: #e0e5e1;
+  --hf-control: #79847c;
+  --hf-input: #fafbfa;
+  --hf-soft: #f0f2f0;
+  --hf-selection: #e8f1e9;
+  --hf-accent: #c0dbc3;
+  --hf-progress: #729d7a;
+  --hf-progress-fill: #4e7858;
+  --hf-hero: #244c3b;
+  --hf-hero-text: #fff;
+  --hf-hero-muted: #d4e8d7;
+  --hf-hero-track: #192f26;
+  --hf-warm: #f6ebd4;
+  --hf-error-surface: #f8e8e5;
+  --hf-radius: 1rem;
+  --hf-radius-control: 0.65rem;
+  --hf-shadow: 0 2px 6px rgb(36 41 37 / 4%);
+  --hf-max: 66rem;
+  --hf-gutter: clamp(0.875rem, 3vw, 2rem);
+
+  @include ionic-color(primary, #244c3b, #fff);
+  @include ionic-color(secondary, #2f6473, #fff);
+  @include ionic-color(tertiary, #635682, #fff);
+  @include ionic-color(success, #356448, #fff);
+  @include ionic-color(warning, #765719, #fff);
+  @include ionic-color(danger, #9d403d, #fff);
+  @include ionic-color(medium, #5f6861, #fff);
+}
+
+:root.ion-palette-dark, :root.ion-palette-dark.ios {
+  color-scheme: dark;
+  --ion-background-color: #141716;
+  --ion-background-color-rgb: 20, 23, 22;
+  --ion-text-color: #e8ece9;
+  --ion-text-color-rgb: 232, 236, 233;
+  --ion-card-background: var(--hf-surface);
+  --ion-toolbar-background: var(--hf-surface);
+  --ion-item-background: var(--hf-surface);
+  --ion-overlay-background-color: var(--hf-surface);
+  --ion-border-color: var(--hf-border);
+
+  --hf-surface: #202422;
+  --hf-muted: #a0aca3;
+  --hf-border: #343b36;
+  --hf-control: #758278;
+  --hf-input: #191d1b;
+  --hf-soft: #2a302c;
+  --hf-selection: #294c3a;
+  --hf-accent: #c0dbc3;
+  --hf-progress: #92b99b;
+  --hf-progress-fill: var(--hf-progress);
+  --hf-warm: #43371e;
+  --hf-error-surface: #462c2d;
+  --hf-shadow: 0 2px 6px rgb(0 0 0 / 12%);
+
+  @include ionic-color(primary, #a8cfb1, #1a2620);
+  @include ionic-color(secondary, #a1cddd, #172932);
+  @include ionic-color(tertiary, #c8b9ee, #28203c);
+  @include ionic-color(success, #b3d8bb, #1a2620);
+  @include ionic-color(warning, #efcd86, #33260e);
+  @include ionic-color(danger, #f0a8a3, #381918);
+  @include ionic-color(medium, #a0aca3, #202422);
+}

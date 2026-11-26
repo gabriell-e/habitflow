@@ -1,0 +1,41 @@
+.appearance-trigger {
+  --padding-start: 0.5rem;
+  --padding-end: 0.5rem;
+}
+
+.appearance-trigger ion-icon {
+  font-size: 1.15rem;
+}
+
+.appearance-popover {
+  --width: min(12.75rem, calc(100vw - 2rem));
+  --background: var(--hf-surface);
+}
+
+.appearance-options {
+  padding: 0.5rem 0.75rem;
+}
+
+.appearance-options p {
+  margin: 0.375rem 0.375rem 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.appearance-options p[role='status'] {
+  color: var(--hf-muted);
+  font-weight: 400;
+}
+
+.appearance-options ion-radio {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.625rem 0.375rem;
+  --color-checked: var(--ion-color-primary);
+}
+
+.appearance-options ion-radio:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: -2px;
+}

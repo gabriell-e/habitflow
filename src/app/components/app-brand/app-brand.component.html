@@ -1,0 +1,27 @@
+<div class="topbar">
+  <span class="brand"><ion-icon name="leaf-outline" aria-hidden="true"></ion-icon>HabitFlow</span>
+  <ion-button
+    class="appearance-trigger"
+    fill="clear"
+    color="medium"
+    aria-label="Apariencia"
+    aria-haspopup="dialog"
+    (click)="appearanceMenu.present($event)"
+  ><ion-icon name="contrast-outline" slot="icon-only" aria-hidden="true"></ion-icon></ion-button>
+</div>
+
+<ion-popover #appearanceMenu class="appearance-popover" side="bottom" alignment="end" aria-label="Apariencia">
+  <ng-template>
+    <div class="appearance-options">
+      <p>Apariencia</p>
+      <ion-radio-group aria-label="Modo de apariencia" [value]="appearance.preference()" (ionChange)="appearance.select($event.detail.value)">
+        <ion-radio value="system" justify="space-between">Sistema</ion-radio>
+        <ion-radio value="light" justify="space-between">Claro</ion-radio>
+        <ion-radio value="dark" justify="space-between">Oscuro</ion-radio>
+      </ion-radio-group>
+      @if (appearance.notSaved()) {
+        <p role="status">El navegador solo permite aplicar la apariencia durante esta sesión.</p>
+      }
+    </div>
+  </ng-template>
+</ion-popover>
