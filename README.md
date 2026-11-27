@@ -55,3 +55,28 @@ npm run test:browser
 La prueba de navegador usa el build de `www/` y Chrome instalado. Si Chrome está en otra ubicación, define `CHROME_PATH` con la ruta a su ejecutable. Las pruebas usan un perfil temporal y un reloj de prueba para reproducir los cambios de fecha.
 
 Para regenerar las capturas, define `HABITFLOW_SCREENSHOTS=1` y ejecuta `npm run test:browser` después de compilar. Los PNG se guardan en `docs/screenshots/`.
+
+## APK de debug para Android
+
+El proyecto nativo usa Capacitor 8.6.3, el plugin App 8.1.2 para el botón Atrás, JDK 21 y el Gradle Wrapper incluido. Instala desde Android Studio SDK Platform 36, Build-Tools 35.0.0 y Platform-Tools. La compilación usa Gradle 8.14.3 y Android Gradle Plugin 8.13.0. La configuración de HabitFlow usa `io.github.gabriell_e.habitflow` como identificador de aplicación y `www/` como directorio web. [Requisitos de Capacitor 8](https://capacitorjs.com/docs/updating/8-0)
+
+Desde la raíz del repositorio en PowerShell, comprueba que `JAVA_HOME` apunte al JDK 21 y ajusta `ANDROID_HOME` si el SDK está en otra ruta.
+
+```powershell
+$env:ANDROID_HOME = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
+npm ci
+npm run build
+npx cap sync android
+Push-Location android
+.\gradlew.bat :app:assembleDebug
+Pop-Location
+```
+
+El archivo se genera en `android/app/build/outputs/apk/debug/app-debug.apk`. Cada cambio web requiere volver a compilar Angular y sincronizar los recursos antes de generar el APK. Para probarlo en un teléfono, usa un WebView de Android actualizado y habilita la depuración USB.
+
+```powershell
+& "$env:ANDROID_HOME\platform-tools\adb.exe" devices
+& "$env:ANDROID_HOME\platform-tools\adb.exe" install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Capacitor sirve los recursos empaquetados desde `https://localhost` dentro de la aplicación. El APK y el navegador tienen almacenamientos separados. Una actualización que conserva el identificador y el origen local reutiliza los datos de la aplicación. Borrar sus datos o desinstalarla puede eliminar los registros.
