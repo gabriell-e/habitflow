@@ -1,5 +1,7 @@
 {
   "name": "HabitFlow",
   "type": "angular-standalone",
-  "integrations": {}
+  "integrations": {
+    "capacitor": {}
+  }
 }
