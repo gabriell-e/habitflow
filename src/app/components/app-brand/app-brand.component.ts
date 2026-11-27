@@ -1,5 +1,9 @@
 import { Component } from '@angular/core';
-import { IonButton, IonIcon, IonPopover, IonRadio, IonRadioGroup } from '@ionic/angular';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonIcon } from '@ionic/angular/ion-icon';
+import { IonPopover } from '@ionic/angular/ion-popover';
+import { IonRadio } from '@ionic/angular/ion-radio';
+import { IonRadioGroup } from '@ionic/angular/ion-radio-group';
 import { addIcons } from 'ionicons';
 import { contrastOutline, leafOutline } from 'ionicons/icons';
 

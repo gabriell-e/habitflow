@@ -1,8 +1,18 @@
 import { Component, computed, OnInit, signal } from '@angular/core';
-import {
-  IonBadge, IonButton, IonCard, IonCardContent, IonCardHeader, IonCardSubtitle, IonCardTitle,
-  IonContent, IonHeader, IonInput, IonProgressBar, IonSpinner, IonText, IonToolbar,
-} from '@ionic/angular';
+import { IonBadge } from '@ionic/angular/ion-badge';
+import { IonButton } from '@ionic/angular/ion-button';
+import { IonCard } from '@ionic/angular/ion-card';
+import { IonCardContent } from '@ionic/angular/ion-card-content';
+import { IonCardHeader } from '@ionic/angular/ion-card-header';
+import { IonCardSubtitle } from '@ionic/angular/ion-card-subtitle';
+import { IonCardTitle } from '@ionic/angular/ion-card-title';
+import { IonContent } from '@ionic/angular/ion-content';
+import { IonHeader } from '@ionic/angular/ion-header';
+import { IonInput } from '@ionic/angular/ion-input';
+import { IonProgressBar } from '@ionic/angular/ion-progress-bar';
+import { IonSpinner } from '@ionic/angular/ion-spinner';
+import { IonText } from '@ionic/angular/ion-text';
+import { IonToolbar } from '@ionic/angular/ion-toolbar';
 
 import { AppBrandComponent } from '../../components/app-brand/app-brand.component';
 import { HabitSymbolComponent } from '../../components/habit-symbol/habit-symbol.component';

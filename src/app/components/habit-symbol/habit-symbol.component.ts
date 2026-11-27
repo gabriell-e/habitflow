@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import { IonIcon } from '@ionic/angular';
+import { IonIcon } from '@ionic/angular/ion-icon';
 import { addIcons } from 'ionicons';
 import {
   bookOutline, checkmarkCircleOutline, fitnessOutline, layersOutline, leafOutline, timeOutline, waterOutline,
