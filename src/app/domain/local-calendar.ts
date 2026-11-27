@@ -35,7 +35,10 @@ export function periodRange(today: string, period: Period, offset: number): Date
 }
 
 export function* datesBetween(start: string, end: string): Generator<string> {
-  for (let date = start; date <= end; date = addDays(date, 1)) yield date;
+  const last = calendarDate(end);
+  for (const date = calendarDate(start); date <= last; date.setDate(date.getDate() + 1)) {
+    yield localDateKey(date);
+  }
 }
 
 export function formatLocalDate(key: string, options: Intl.DateTimeFormatOptions): string {

@@ -24,7 +24,7 @@ export function localDateKey(date = new Date()): string {
 }
 
 export function isLocalDateKey(value: unknown): value is string {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000-')) {
     return false;
   }
 
