@@ -168,6 +168,13 @@ test('Hoy registra, corrige y persiste las tres modalidades', async () => {
     await until(hasCardText('Leer', '1 de 3 días completados'));
     await amount('Leer', '6');
     await until(hasCardText('Leer', '0 de 3 días completados'));
+    await amount('Leer', '9007199254740992');
+    await until(hasCardText('Leer', '9007199254740992'));
+    await click(button('Leer', '+1'));
+    await until(hasCardText('Leer', 'demasiado grande'));
+    assert.equal(await run(storage + ".records.find(record=>record.habitId==='example-reading').value"), 9007199254740992);
+    await amount('Leer', '6');
+    await until(hasCardText('Leer', '0 de 3 días completados'));
     assert.equal(await run(storage + '.records.length'), 3);
     assert.equal(await run(storage + ".records.every(record=>record.date==='2026-11-25')"), true);
 
@@ -256,6 +263,16 @@ test('Progreso actualiza porcentajes, filtros, calendario e historial al navegar
     await until(progressText('Calendario', 'Meditar · Incumplido'));
     await run('window.sameDocument = true');
     await go('hoy');
+    await run(`(()=>{ const field=(${card('Meditar')}).querySelector('input');field.value='4';
+      field.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true})); })()`);
+    await click(button('Meditar', 'Guardar'));
+    await until(hasCardText('Meditar', 'Parcial'));
+    await go('progreso');
+    await click("document.querySelector('app-progress .calendar button:nth-of-type(3)')");
+    await until(progressText('Calendario', 'Meditar · Parcial'));
+    await until(progressText('Resumen', '50 %'));
+    assert.equal(await run("document.querySelector('app-progress .period-navigation p').textContent.match(/2026/g).length"), 1);
+    await go('hoy');
     await run(`(()=>{ const field=(${card('Meditar')}).querySelector('input');field.value='10';
       field.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true})); })()`);
     await click(button('Meditar', 'Guardar'));
@@ -323,6 +340,40 @@ test('Hoy y Progreso muestran carga, recuperan un error de origen y respetan una
       assert.equal(await run(storage + '.habits.length'), 0);
     }
   }, { seedFails: true });
+});
+
+test('el almacenamiento corrupto se conserva y Reintentar recupera una copia válida', async () => {
+  await withBrowser(async ({ call, run, click, until }) => {
+    const key = 'habitflow.data.v1';
+    const raw = `localStorage.getItem('${key}')`;
+    const put = (value) => run(`localStorage.setItem('${key}', ${JSON.stringify(value)})`);
+    const message = "document.querySelector('app-today .surface-error [role=alert]')?.textContent";
+    const retry = "document.querySelector('app-today .surface-error ion-button')";
+    await until(hasCardText('Meditar', 'Pendiente'));
+    const valid = await run(raw);
+    await put('{');
+    await call('Page.reload');
+    await until(`(${message})?.includes('JSON válido')`);
+    assert.equal(await run(raw), '{');
+
+    const data = JSON.parse(valid);
+    for (const invalid of [
+      { ...data, records: [{ habitId: 'example-planning', date: '2026-11-25', value: false, completed: true }] },
+      { ...data, records: [{ habitId: 'example-reading', date: '2026-11-25', value: 2, completed: true,
+        goal: { unit: 'páginas', target: 15 } }] },
+      { ...data, schedule: [{ habitId: 'example-reading', date: '0000-01-01', frequency: { kind: 'weekly', times: 2 } }] },
+    ]) {
+      const damaged = JSON.stringify(invalid);
+      await put(damaged);
+      await click(retry);
+      await until(`(${message})?.includes('formato inválido')`);
+      assert.equal(await run(raw), damaged);
+    }
+    await put(valid);
+    await click(retry);
+    await until(hasCardText('Meditar', 'Pendiente'));
+    assert.equal(await run(raw), valid);
+  });
 });
 
 function contrast(first, second) {
@@ -453,7 +504,10 @@ test('el diseño se adapta a cuatro anchos y a los temas claro y oscuro', async 
           const touches = await run("Array.from(document.querySelectorAll('ion-tab-button'),e=>e.getBoundingClientRect().height)");
           assert.ok(touches.every((height) => height >= 44));
           if (name === 'progreso') {
-            assert.ok(await run("document.querySelector('app-progress .calendar button').getBoundingClientRect().height >= 44"));
+            assert.ok(await run(`(() => {
+              const {width, height} = document.querySelector('app-progress .calendar button').getBoundingClientRect();
+              return width >= 24 && height >= 44;
+            })()`));
           }
           if (process.env.HABITFLOW_SCREENSHOTS === '1' && (width === 390 || (width === 1366 && name === 'progreso'))) {
             if (width === 390 && name === 'hoy') await viewport(390, 1000);
@@ -501,8 +555,18 @@ test('el diseño se adapta a cuatro anchos y a los temas claro y oscuro', async 
     await click(create);
     await fill('name', 'Estirar');
     await select('type', 'Duración');
+    await fill('target', '0');
+    await click(modalButton('Guardar'));
+    await until(`(${form})?.querySelector('[role=alert]')?.textContent.includes('mayor que cero')`);
     await fill('target', '5');
     await fill('unit', 'minutos');
+    await select('frequency', 'Días específicos');
+    const days = `(${form})?.querySelector('[formcontrolname=days]')`;
+    await until(`Boolean(${days})`);
+    assert.deepEqual(await run(`Array.from((${days}).querySelectorAll('ion-select-option'), option => option.textContent.trim())`),
+      ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']);
+    await click(modalButton('Guardar'));
+    await until(`(${form})?.querySelector('[role=alert]')?.textContent.includes('al menos un día')`);
     await select('frequency', 'Veces por semana');
     await select('times', '2');
     await click(modalButton('Guardar'));
@@ -550,6 +614,50 @@ test('el diseño se adapta a cuatro anchos y a los temas claro y oscuro', async 
     await key('Enter', 'Enter', 13);
     await until("location.pathname === '/tabs/progreso'");
     assert.equal(await overflow('app-progress > ion-content'), false);
+
+    await go('habitos');
+    await openHabitMenu(click, 'Meditar');
+    await click(menuOption('Editar'));
+    await until(`(${form})?.querySelector('[formcontrolname=target] input')?.value === '10'`);
+    await fill('target', '5');
+    await click(modalButton('Guardar'));
+    await until(`!(${modal}) && (${habitCard('Meditar')})?.textContent.includes('5 minutos')`);
+    await go('hoy');
+    await until(hasCardText('Meditar', 'Objetivo del registro: 10 minutos'));
+    assert.equal(await run(hasCardText('Meditar', 'Parcial')), true);
+    assert.equal(await run(storage + ".records.find(record=>record.habitId==='example-meditation' && record.date==='2026-11-25').completed"), false);
+  });
+});
+
+test('120 hábitos con nombres largos permiten abrir, filtrar y recorrer Progreso', async (t) => {
+  await withBrowser(async ({ call, run, click, until }) => {
+    await until(hasCardText('Meditar', 'Pendiente'));
+    await run(`(() => {
+      const habits = Array.from({ length: 120 }, (_, i) => ({
+        id: 'bulk-' + i, name: 'HábitoLargo'.repeat(15) + i, active: true, type: 'boolean',
+        frequency: { kind: 'daily' },
+      }));
+      const schedule = habits.map(({id, frequency}) => ({habitId: id, date: '2025-11-26', frequency}));
+      const records = habits.flatMap(({id}) => Array.from({ length: 25 }, (_, day) => ({
+        habitId: id, date: '2026-11-' + String(day + 1).padStart(2, '0'), value: true, completed: true,
+      })));
+      localStorage.setItem('habitflow.data.v1', JSON.stringify({ habits, schedule, records }));
+    })()`);
+    await call('Page.reload');
+    await until("document.querySelectorAll('app-today .daily-habit').length === 120");
+    await click(tab('habitos'));
+    await until("document.querySelectorAll('app-habits .habit-row').length === 120");
+    const started = performance.now();
+    await click(tab('progreso'));
+    await until("document.querySelectorAll('app-progress .streak-item').length === 120");
+    t.diagnostic(`Progreso semanal visible en ${Math.round(performance.now() - started)} ms (Chrome headless)`);
+    await click("document.querySelector('app-progress ion-segment-button[value=month]')");
+    await until("document.querySelectorAll('app-progress .history-row').length === 3000");
+    await click("document.querySelector('app-progress ion-select')");
+    await click("document.querySelector('ion-alert:not(.overlay-hidden) button.alert-radio-button:nth-of-type(2)')");
+    await click("[...document.querySelectorAll('ion-alert:not(.overlay-hidden) button')].find(b => b.textContent.trim() === 'Aceptar')");
+    await until("document.querySelectorAll('app-progress .history-row').length === 25");
+    assert.equal(await run("document.querySelectorAll('app-progress .streak-item').length"), 1);
   });
 });
 

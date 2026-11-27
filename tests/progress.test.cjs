@@ -20,8 +20,8 @@ execFileSync(process.execPath, [
 const { buildProgress } = require(path.join(scratch, 'domain/habit-progress.js'));
 const { recordSchedule } = require(path.join(scratch, 'domain/habit-schedule.js'));
 const { dailyHabits } = require(path.join(scratch, 'domain/habit-tracking.js'));
-const { addDays, periodRange, startOfWeek } = require(path.join(scratch, 'domain/local-calendar.js'));
-const { uniqueRecords } = require(path.join(scratch, 'models/habit-record.model.js'));
+const { addDays, datesBetween, formatDateRange, periodRange, startOfWeek } = require(path.join(scratch, 'domain/local-calendar.js'));
+const { isLocalDateKey, uniqueRecords } = require(path.join(scratch, 'models/habit-record.model.js'));
 
 const daily = { kind: 'daily' };
 const weekly = { kind: 'weekly', times: 3 };
@@ -36,6 +36,39 @@ test('calendario local con lunes inicial, cruces de mes y año bisiesto', () => 
   assert.equal(addDays('2026-12-31', 1), '2027-01-01');
   assert.deepEqual(periodRange('2024-03-01', 'month', -1), { start: '2024-02-01', end: '2024-02-29' });
   assert.deepEqual(periodRange('2026-12-01', 'week', 0), { start: '2026-11-30', end: '2026-12-06' });
+});
+
+test('fechas inválidas, límite ISO y rango compacto con cruces de mes y año', () => {
+  assert.equal(isLocalDateKey('2026-02-29'), false);
+  assert.equal(isLocalDateKey('0000-01-01'), false);
+  assert.deepEqual([...datesBetween('9999-12-30', '9999-12-31')], ['9999-12-30', '9999-12-31']);
+  assert.deepEqual([...datesBetween('2026-03-07', '2026-03-10')], [
+    '2026-03-07', '2026-03-08', '2026-03-09', '2026-03-10',
+  ]);
+  assert.equal(formatDateRange('2026-11-23', '2026-11-29').match(/2026/g).length, 1);
+  assert.match(formatDateRange('2026-11-30', '2026-12-06'), /30.*nov.*6.*dic.*2026/);
+  assert.match(formatDateRange('2026-12-28', '2027-01-03'), /28.*dic.*2026.*3.*ene.*2027/);
+});
+
+test('un parcial abierto coincide con Hoy y pasa a incumplido al cerrar el día', () => {
+  const today = '2026-11-11';
+  const measured = { ...habit, type: 'quantity', unit: 'páginas', target: 20 };
+  const schedule = [version('2026-11-09', daily)];
+  const partial = { habitId: 'a', date: today, value: 4, completed: false, goal: { target: 10, unit: 'páginas' } };
+  const items = dailyHabits([measured], [partial], schedule, today);
+  assert.equal(items[0].status, 'Parcial');
+  assert.equal(items[0].progress, 0.4);
+  const open = report([partial], schedule, today, 'week', 0, [measured]);
+  assert.equal(open.days[2].habits[0].state, 'partial');
+  assert.equal(open.expected, 2);
+  const closed = report([partial], schedule, '2026-11-12', 'week', 0, [measured]);
+  assert.equal(closed.days[2].habits[0].state, 'missed');
+  assert.equal(closed.expected, 3);
+  assert.equal(closed.history[0].record, partial);
+  assert.equal(report([{ ...partial, value: 0 }], schedule, today, 'week', 0, [measured])
+    .days[2].habits[0].state, 'pending');
+  assert.equal(report([{ ...partial, value: 10, completed: true }], schedule, today, 'week', 0, [measured])
+    .days[2].habits[0].state, 'completed');
 });
 
 test('cada día cerrado cuenta y un registro pendiente de hoy no corta la racha', () => {
