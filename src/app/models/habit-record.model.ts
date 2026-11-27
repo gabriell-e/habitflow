@@ -7,6 +7,11 @@ export interface HabitRecord {
   readonly goal?: { readonly target: number; readonly unit: string };
 }
 
+export function recordStatus(record?: HabitRecord) {
+  if (record?.completed) return 'Completado';
+  return typeof record?.value === 'number' && record.value > 0 ? 'Parcial' : 'Pendiente';
+}
+
 export function uniqueRecords(records: readonly HabitRecord[]): HabitRecord[] {
   const byDay = new Map<string, HabitRecord>();
   for (const record of records) {

@@ -41,8 +41,8 @@
         </ion-select>
         @if (frequency() === 'weekdays') {
           <ion-select class="field-control" label="Días" labelPlacement="stacked" formControlName="days" [multiple]="true" cancelText="Cancelar" okText="Aceptar">
-            @for (day of weekdays; track day; let index = $index) {
-              <ion-select-option [value]="index">{{ day }}</ion-select-option>
+            @for (day of weekdays; track day.value) {
+              <ion-select-option [value]="day.value">{{ day.label }}</ion-select-option>
             }
           </ion-select>
         } @else if (frequency() === 'weekly') {

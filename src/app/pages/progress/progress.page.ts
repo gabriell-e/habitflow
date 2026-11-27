@@ -8,8 +8,8 @@ import { chevronBack, chevronForward } from 'ionicons/icons';
 
 import { AppBrandComponent } from '../../components/app-brand/app-brand.component';
 import { dayStates, progressHabits } from '../../domain/habit-progress';
-import { calendarDate, formatLocalDate, Period } from '../../domain/local-calendar';
-import { HabitRecord } from '../../models/habit-record.model';
+import { calendarDate, formatDateRange, formatLocalDate, Period } from '../../domain/local-calendar';
+import { HabitRecord, recordStatus } from '../../models/habit-record.model';
 import { HabitService } from '../../services/habit.service';
 import { LocalCalendarService } from '../../services/local-calendar.service';
 import { ProgressService } from '../../services/progress.service';
@@ -29,6 +29,7 @@ export class ProgressPage implements OnInit {
   protected readonly selectedHabit = signal('');
   protected readonly selectedDate = signal<string | null>(null);
   protected readonly dayStates = dayStates;
+  protected readonly rangeLabel = formatDateRange;
   protected readonly weekDays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 
   protected readonly habits = computed(() => progressHabits(
@@ -81,10 +82,10 @@ export class ProgressPage implements OnInit {
     return formatLocalDate(date, { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
-  protected recordLabel(record: HabitRecord): string {
-    if (typeof record.value === 'boolean') return record.value ? 'Sí · Completado' : 'No · Sin completar';
-    const state = record.completed ? 'Completado' : record.value > 0 ? 'Parcial' : 'Sin completar';
-    const unit = record.goal ? ` ${record.goal.unit}` : '';
-    return `${record.value}${unit} · ${state}`;
+  protected recordLabel(record: HabitRecord, dayLabel?: string): string {
+    const value = typeof record.value === 'boolean' ? (record.value ? 'Sí' : 'No')
+      : record.goal ? `${record.value} ${record.goal.unit}` : String(record.value);
+    const status = recordStatus(record);
+    return dayLabel === status ? value : `${value} · ${status}`;
   }
 }

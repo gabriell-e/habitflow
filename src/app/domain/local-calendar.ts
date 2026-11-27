@@ -44,3 +44,9 @@ export function* datesBetween(start: string, end: string): Generator<string> {
 export function formatLocalDate(key: string, options: Intl.DateTimeFormatOptions): string {
   return calendarDate(key).toLocaleDateString('es-PY', options);
 }
+
+const rangeFormatter = new Intl.DateTimeFormat('es-PY', { day: 'numeric', month: 'short', year: 'numeric' });
+
+export function formatDateRange(start: string, end: string): string {
+  return rangeFormatter.formatRange(calendarDate(start), calendarDate(end));
+}

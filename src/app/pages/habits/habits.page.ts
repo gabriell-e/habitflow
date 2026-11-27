@@ -10,7 +10,7 @@ import { addOutline, ellipsisHorizontal, pencilOutline, trashOutline } from 'ion
 import { AppBrandComponent } from '../../components/app-brand/app-brand.component';
 import { HabitFormComponent } from '../../components/habit-form/habit-form.component';
 import { HabitSymbolComponent } from '../../components/habit-symbol/habit-symbol.component';
-import { Habit, HabitFrequency, HabitInput, weekdayLabels } from '../../models/habit.model';
+import { Habit, HabitFrequency, HabitInput, weekdayLabels, weekdaysFromMonday } from '../../models/habit.model';
 import { HabitService } from '../../services/habit.service';
 
 @Component({
@@ -101,7 +101,8 @@ export class HabitsPage implements OnInit {
   protected describeFrequency(frequency: HabitFrequency): string {
     switch (frequency.kind) {
       case 'daily': return 'Todos los días';
-      case 'weekdays': return frequency.days.map((day) => weekdayLabels[day]).join(', ');
+      case 'weekdays': return weekdaysFromMonday.filter((day) => frequency.days.includes(day))
+        .map((day) => weekdayLabels[day]).join(', ');
       case 'weekly': return frequency.times === 1 ? '1 vez por semana' : `${frequency.times} veces por semana`;
     }
   }

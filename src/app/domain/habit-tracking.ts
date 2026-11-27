@@ -1,5 +1,5 @@
 import { Habit, HabitFrequency, Weekday } from '../models/habit.model';
-import { HabitRecord } from '../models/habit-record.model';
+import { HabitRecord, recordStatus } from '../models/habit-record.model';
 import { frequencyAt, ScheduleChange } from './habit-schedule';
 import { calendarDate, startOfWeek } from './local-calendar';
 
@@ -26,8 +26,7 @@ export function dailyHabits(
       }).length;
       if (quota !== null && done >= quota && !record) return [];
 
-      const status = record?.completed ? 'Completado'
-        : typeof record?.value === 'number' && record.value > 0 ? 'Parcial' : 'Pendiente';
+      const status = recordStatus(record);
       const amount = typeof record?.value === 'number' ? record.value : null;
       const progress = record?.completed ? 1 : status !== 'Parcial' ? 0
         : record?.goal && amount !== null ? Math.min(amount / record.goal.target, 1) : null;

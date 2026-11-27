@@ -1,11 +1,11 @@
 import { Habit } from '../models/habit.model';
-import { HabitRecord, uniqueRecords } from '../models/habit-record.model';
+import { HabitRecord, recordStatus, uniqueRecords } from '../models/habit-record.model';
 import { frequencyAt, ScheduleChange } from './habit-schedule';
 import { scheduledOnDay } from './habit-tracking';
 import { addDays, DateRange, datesBetween, startOfWeek } from './local-calendar';
 
 export const dayStates = {
-  completed: 'Completado', missed: 'Incumplido', pending: 'Pendiente', flexible: 'Meta semanal',
+  completed: 'Completado', missed: 'Incumplido', pending: 'Pendiente', partial: 'Parcial', flexible: 'Meta semanal',
   off: 'No programado', unknown: 'Sin programación conocida', future: 'Futuro',
 } as const;
 
@@ -44,7 +44,9 @@ function stateOnDay(
   const frequency = frequencyAt(changes, date);
   if (frequency === undefined) return 'unknown';
   if (frequency === null || !scheduledOnDay(frequency, date)) return 'off';
-  if (record?.completed) return 'completed';
+  const status = recordStatus(record);
+  if (status === 'Completado') return 'completed';
+  if (date === today && status === 'Parcial') return 'partial';
   if (frequency.kind === 'weekly') return 'flexible';
   return date === today ? 'pending' : 'missed';
 }

@@ -4,7 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { IonButton, IonInput, IonList, IonSelect, IonSelectOption, IonText, IonTextarea } from '@ionic/angular';
 
 import {
-  Habit, habitColors, HabitFrequency, habitIcons, HabitInput, HabitType, Weekday, weekdayLabels,
+  Habit, habitColors, HabitFrequency, habitIcons, HabitInput, HabitType, Weekday, weekdayLabels, weekdaysFromMonday,
 } from '../../models/habit.model';
 
 @Component({
@@ -20,7 +20,7 @@ export class HabitFormComponent implements OnInit {
 
   protected readonly colors = Object.entries(habitColors);
   protected readonly icons = Object.entries(habitIcons);
-  protected readonly weekdays = weekdayLabels;
+  protected readonly weekdays = weekdaysFromMonday.map((value) => ({ value, label: weekdayLabels[value] }));
   protected readonly weeklyOptions = [1, 2, 3, 4, 5, 6, 7];
 
   protected readonly form = new FormGroup({

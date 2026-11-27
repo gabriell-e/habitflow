@@ -27,6 +27,7 @@ export const habitIcons = {
 } as const;
 
 export const weekdayLabels = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+export const weekdaysFromMonday: readonly Weekday[] = [1, 2, 3, 4, 5, 6, 0];
 
 interface HabitDetails {
   readonly name: string;
