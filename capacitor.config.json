@@ -1,5 +1,11 @@
 {
-    "appId":  "io.github.gabriell_e.habitflow",
-    "appName":  "HabitFlow",
-    "webDir":  "www"
+  "appId": "io.github.gabriell_e.habitflow",
+  "appName": "HabitFlow",
+  "webDir": "www",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
 }

@@ -1,5 +1,6 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, Inject, Injectable, signal } from '@angular/core';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 
 import { StorageService } from './storage.service';
 
@@ -55,5 +56,16 @@ export class AppearanceService {
     const preference = this.preference();
     const dark = preference === 'dark' || (preference === 'system' && this.system?.matches === true);
     this.document.documentElement.classList.toggle('ion-palette-dark', dark);
+    if (Capacitor.getPlatform() !== 'android') return;
+
+    const window = this.document.defaultView;
+    window?.requestAnimationFrame(() => {
+      // Si el WebView termina antes de la barra, su fondo y sus iconos siguen el tema de Android.
+      const inset = window.getComputedStyle(this.document.documentElement).getPropertyValue('--ion-safe-area-top');
+      const style = preference === 'system' || !(parseFloat(inset) > 0) ? SystemBarsStyle.Default
+        : dark ? SystemBarsStyle.Dark : SystemBarsStyle.Light;
+      void SystemBars.setStyle({ style }).catch((error: unknown) =>
+        console.warn('No se pudo aplicar la apariencia a las barras de Android.', error));
+    });
   };
 }
