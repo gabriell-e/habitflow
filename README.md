@@ -9,6 +9,7 @@ En la pestaña **Hábitos** puedes filtrar por estado, crear hábitos, activarlo
 En **Hoy** puedes completar y deshacer hábitos de sí o no, sumar o corregir cantidades y registrar duraciones manualmente. Los registros se guardan por hábito y fecha local. En **Progreso** puedes consultar el cumplimiento semanal o mensual, las rachas, el calendario y el historial, con un filtro por hábito.
 
 En la primera ejecución la aplicación carga ejemplos desde `src/assets/data/habits.json`. Los cambios se guardan en `localStorage` y se conservan al recargar en el mismo navegador y origen.
+Si la carga falla, el botón **Reintentar** vuelve a leer el almacenamiento y, si está vacío, solicita los ejemplos. Si hay datos guardados pero inválidos, se muestra un aviso y se conserva el contenido.
 
 ### Capturas
 
@@ -31,7 +32,7 @@ El botón **Apariencia** de la cabecera permite elegir Sistema, Claro u Oscuro. 
 
 ## Desarrollo
 
-Stack inicial con Ionic Angular 9.0.8, Angular 21.2.25 (LTS), TypeScript 5.9.3 e Ionicons 8.1.0.
+Ionic Angular 9.0.8, Angular 21.2.25 (LTS), Angular CLI y build 21.2.31, TypeScript 5.9.3 e Ionicons 8.1.0.
 
 Con Node.js 24 LTS y npm, ejecutar:
 
@@ -40,7 +41,9 @@ npm ci
 npm start
 ```
 
-Para comprobar los tipos y compilar para producción:
+Abre `http://localhost:4200` o la URL que indique la terminal si el puerto está ocupado. El navegador guarda datos distintos para `localhost`, `127.0.0.1` y cada puerto.
+
+Para verificar la aplicación y generar el build de producción en `www/`:
 
 ```sh
 npm run typecheck
