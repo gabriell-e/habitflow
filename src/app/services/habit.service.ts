@@ -86,11 +86,14 @@ function isRecord(value: unknown): value is HabitRecord {
   if (!isObject(value)) return false;
 
   const { habitId, date, value: amount, completed, habitName, goal } = value;
-  return hasText(habitId) && isLocalDateKey(date) && typeof completed === 'boolean'
-    && (typeof amount === 'boolean' || (isNumber(amount) && amount >= 0))
-    && (habitName === undefined || hasText(habitName))
-    && (goal === undefined || (typeof amount === 'number' && isObject(goal)
-      && isNumber(goal['target']) && goal['target'] > 0 && hasText(goal['unit'])));
+  if (!hasText(habitId) || !isLocalDateKey(date) || typeof completed !== 'boolean'
+    || (habitName !== undefined && !hasText(habitName))) return false;
+
+  if (typeof amount === 'boolean') return goal === undefined && completed === amount;
+  if (!isNumber(amount) || amount < 0) return false;
+  if (goal === undefined) return amount > 0 || !completed;
+  return isObject(goal) && isNumber(goal['target']) && goal['target'] > 0 && hasText(goal['unit'])
+    && completed === (amount >= goal['target']);
 }
 
 function isHabitData(value: unknown): value is HabitData {
@@ -138,10 +141,6 @@ export class HabitService {
       this.pendingLoad = undefined;
     });
     return this.pendingLoad;
-  }
-
-  getHabit(id: string): Habit | undefined {
-    return this.habits().find((habit) => habit.id === id);
   }
 
   createHabit(input: HabitInput): Habit {
@@ -193,7 +192,9 @@ export class HabitService {
       if (record && (typeof record.value !== 'number' || record.goal?.unit !== habit.unit)) {
         throw new Error('Corrige el valor según la unidad actual antes de incrementarlo.');
       }
-      return (typeof record?.value === 'number' ? record.value : 0) + 1;
+      const amount = typeof record?.value === 'number' ? record.value : 0;
+      if (amount >= Number.MAX_SAFE_INTEGER) throw new Error('La cantidad es demasiado grande para sumar 1.');
+      return amount + 1;
     });
   }
 
@@ -232,12 +233,6 @@ export class HabitService {
       const records = data.records.filter((item) => item.habitId !== habitId || item.date !== date);
       return { ...data, records: [...records, record] };
     }).records.at(-1)!;
-  }
-
-  getRecords(habitId?: string): readonly HabitRecord[] {
-    return this.records()
-      .filter((record) => habitId === undefined || record.habitId === habitId)
-      .sort((first, second) => second.date.localeCompare(first.date));
   }
 
   private async load(): Promise<void> {
